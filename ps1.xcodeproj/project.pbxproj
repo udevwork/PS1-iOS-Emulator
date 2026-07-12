@@ -11,7 +11,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		926097C13003FCDD00389FFE /* Exceptions for "ps1" folder */ = {
+		926097C13003FCDD00389FFE /* Exceptions for "ps1" folder in "ps1" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -24,7 +24,7 @@
 		926097AF3003FCDA00389FFE /* ps1 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				926097C13003FCDD00389FFE /* Exceptions for "ps1" folder */,
+				926097C13003FCDD00389FFE /* Exceptions for "ps1" folder in "ps1" target */,
 			);
 			path = ps1;
 			sourceTree = "<group>";
@@ -269,8 +269,8 @@
 				DEVELOPMENT_TEAM = 87XM268947;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = ps1/Info.plist;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/Vendor/pcsx_rearmed/deps/libretro-common/include";
+				INFOPLIST_FILE = ps1/Info.plist;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -313,8 +313,8 @@
 				DEVELOPMENT_TEAM = 87XM268947;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = ps1/Info.plist;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/Vendor/pcsx_rearmed/deps/libretro-common/include";
+				INFOPLIST_FILE = ps1/Info.plist;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

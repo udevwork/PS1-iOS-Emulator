@@ -13,11 +13,38 @@ struct Game: Identifiable, Hashable {
             .appendingPathExtension("state")
     }
 
-    /// Обложка — последний кадр из авто-сейва (пишет EmulatorCore.saveCover)
+    /// Скриншот из авто-сейва (пишет EmulatorCore.saveCover)
     var coverURL: URL {
         EmulatorCore.saveDirectory
             .appendingPathComponent(url.lastPathComponent)
             .appendingPathExtension("cover.png")
+    }
+
+    /// Бокс-арт из TheGamesDB (качает BoxartFetcher)
+    var boxartURL: URL {
+        EmulatorCore.saveDirectory
+            .appendingPathComponent(url.lastPathComponent)
+            .appendingPathExtension("boxart.jpg")
+    }
+
+    /// Что показывать на карточке: бокс-арт, иначе скриншот из сейва
+    var displayCoverPath: String {
+        FileManager.default.fileExists(atPath: boxartURL.path) ? boxartURL.path : coverURL.path
+    }
+
+    /// Есть точка продолжения — на карточке показываем «Продолжить»
+    var hasResumePoint: Bool {
+        let autoState = EmulatorCore.saveDirectory
+            .appendingPathComponent(url.lastPathComponent)
+            .appendingPathExtension("auto.state")
+        return FileManager.default.fileExists(atPath: autoState.path)
+    }
+
+    /// Имя для поиска в базе обложек: без региональных тегов «(USA) [!]» и т.п.
+    var searchTitle: String {
+        title
+            .replacingOccurrences(of: #"[(\[][^)\]]*[)\]]"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
     }
 }
 
@@ -58,7 +85,7 @@ struct GameLibraryView: View {
 
     private var selectedCover: UIImage? {
         guard games.indices.contains(selectedIndex) else { return nil }
-        return UIImage(contentsOfFile: games[selectedIndex].coverURL.path)
+        return UIImage(contentsOfFile: games[selectedIndex].displayCoverPath)
     }
 
     var body: some View {
@@ -105,6 +132,7 @@ struct GameLibraryView: View {
         }
         .onAppear {
             reloadGames()
+            fetchBoxarts()
             GamepadManager.shared.mode = .menu
             GamepadManager.shared.menuHandler = { event in
                 handleMenuEvent(event)
@@ -118,6 +146,7 @@ struct GameLibraryView: View {
         .onOpenURL { url in
             importFile(from: url)
             reloadGames()
+            fetchBoxarts()
         }
     }
 
@@ -376,7 +405,7 @@ struct GameLibraryView: View {
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
                             .background(Capsule().fill(.white.opacity(0.1)))
-                        if FileManager.default.fileExists(atPath: game.coverURL.path) {
+                        if game.hasResumePoint {
                             Text("Продолжить")
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.white.opacity(0.45))
@@ -561,8 +590,19 @@ struct GameLibraryView: View {
         case .success(let urls):
             urls.forEach(importFile)
             reloadGames()
+            fetchBoxarts()
         case .failure(let error):
             importError = error.localizedDescription
+        }
+    }
+
+    /// Тихо докачивает недостающие бокс-арты и обновляет карусель
+    private func fetchBoxarts() {
+        let snapshot = games
+        Task {
+            if await BoxartFetcher.fetchMissing(for: snapshot) {
+                reloadGames()
+            }
         }
     }
 
@@ -605,6 +645,7 @@ struct GameLibraryView: View {
         }
         try? FileManager.default.removeItem(at: game.url)
         try? FileManager.default.removeItem(at: game.coverURL)
+        try? FileManager.default.removeItem(at: game.boxartURL)
         try? FileManager.default.removeItem(at: game.saveStateURL)
         reloadGames()
     }
@@ -687,7 +728,7 @@ private struct GameCardView: View {
     let size: CGFloat
 
     var body: some View {
-        let cover = UIImage(contentsOfFile: game.coverURL.path)
+        let cover = UIImage(contentsOfFile: game.displayCoverPath)
 
         ZStack {
             // Свечение: заблюренный дубль арта позади карточки.

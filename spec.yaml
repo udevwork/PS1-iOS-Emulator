@@ -1,0 +1,2338 @@
+swagger: '2.0'
+info:
+  description: TheGamesDB REST API - fetch game, platform, genre, developer, publisher, region and country data
+  version: 2.0.0
+  title: TheGamesDB API
+  license:
+    name: GNU General Public License v3.0
+    url: https://github.com/TheGamesDB/TheGamesDBv2/blob/master/LICENSE
+
+tags:
+- name: Games
+- name: Platforms
+- name: Genres
+- name: Developers
+- name: Publishers
+- name: Regions
+- name: Countries
+- name: Utility
+
+paths:
+  /v1/Games/ByGameID:
+    get:
+      tags:
+      - Games
+      operationId: GamesByGameID
+      summary: "Fetch game(s) by id"
+      description: "Fetch one or more games by their id. Additional data can be requested via `fields` and `include` params."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: id
+        description: "(Required) - supports `,` delimited list"
+        required: true
+        type: string
+      - in: query
+        name: fields
+        description: "(Optional) - comma-delimited: `players`, `publishers`, `genres`, `overview`, `last_updated`, `rating`, `platform`, `coop`, `youtube`, `os`, `processor`, `ram`, `hdd`, `video`, `sound`, `alternates`"
+        required: false
+        type: string
+      - in: query
+        name: include
+        description: "(Optional) - comma-delimited: `boxart`, `platform`"
+        required: false
+        type: string
+      - in: query
+        name: page
+        description: "(Optional) - results page offset to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/GamesByGameID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                games:
+                  - id: 53
+                    game_title: "Sonic the Hedgehog"
+                    release_date: "1991-06-23"
+                    platform: 18
+                    players: 1
+                    overview: "Join Sonic as he races through six zones to stop the evil Dr. Eggman from enslaving the animal inhabitants of South Island."
+                    last_updated: "2022-03-15 10:22:45"
+                    rating: "E - Everyone"
+                    coop: "No"
+                    youtube: "E8VPmADC4aA"
+                    developers: [1296]
+                    genres: [1]
+                    publishers: [1]
+              include:
+                boxart:
+                  base_url:
+                    original: "https://cdn.thegamesdb.net/images/original/"
+                    small: "https://cdn.thegamesdb.net/images/small/"
+                    thumb: "https://cdn.thegamesdb.net/images/thumb/"
+                    cropped_center_thumb: "https://cdn.thegamesdb.net/images/cropped_center_thumb/"
+                    medium: "https://cdn.thegamesdb.net/images/medium/"
+                    large: "https://cdn.thegamesdb.net/images/large/"
+                  data:
+                    "53":
+                      - id: 17438
+                        type: "boxart"
+                        side: "front"
+                        filename: "boxart/front/53-1.jpg"
+                        resolution: "1521x2156"
+                platform:
+                  data:
+                    "18":
+                      id: 18
+                      name: "Sega Genesis"
+                      alias: "sega-genesis"
+              pages:
+                previous: null
+                current: "https://api.thegamesdb.net/v1/Games/ByGameID?apikey=APIKEY&id=53&fields=players%2Cpublishers%2Cgenres%2Coverview%2Clast_updated%2Crating%2Ccoop%2Cyoutube&include=boxart%2Cplatform&page=1"
+                next: null
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid id parameter
+
+  /v1/Games/ByGameName:
+    get:
+      tags:
+      - Games
+      operationId: GamesByGameName_v1
+      summary: "Fetch game(s) by name (v1)"
+      description: "Search for games by name. **Note:** in v1 any value passed to the `mode` param triggers natural language search. Use `/v1.1/Games/ByGameName` for correct `mode=natural` handling."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: name
+        description: "(Required) - search term"
+        required: true
+        type: string
+      - in: query
+        name: fields
+        description: "(Optional) - comma-delimited: `players`, `publishers`, `genres`, `overview`, `last_updated`, `rating`, `platform`, `coop`, `youtube`, `os`, `processor`, `ram`, `hdd`, `video`, `sound`, `alternates`"
+        required: false
+        type: string
+      - in: query
+        name: "filter[platform]"
+        description: "(Optional) - filter by platform id, supports `,` delimited list"
+        required: false
+        type: string
+      - in: query
+        name: "filter[region_id]"
+        description: "(Optional) - filter by region id, supports `,` delimited list"
+        required: false
+        type: string
+      - in: query
+        name: "filter[country_id]"
+        description: "(Optional) - filter by country id, supports `,` delimited list"
+        required: false
+        type: string
+      - in: query
+        name: include
+        description: "(Optional) - comma-delimited: `boxart`, `platform`"
+        required: false
+        type: string
+      - in: query
+        name: page
+        description: "(Optional) - results page offset to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/GamesByGameID_v1'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 2
+                games:
+                  - id: 53
+                    game_title: "Sonic the Hedgehog"
+                    release_date: "1991-06-23"
+                    platform: 18
+                  - id: 432
+                    game_title: "Sonic the Hedgehog 2"
+                    release_date: "1992-11-24"
+                    platform: 18
+              pages:
+                previous: null
+                current: "https://api.thegamesdb.net/v1/Games/ByGameName?apikey=APIKEY&name=Sonic+the+Hedgehog&page=1"
+                next: null
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing name parameter
+
+  /v1.1/Games/ByGameName:
+    get:
+      tags:
+      - Games
+      operationId: GamesByGameName
+      summary: "Fetch game(s) by name (v1.1)"
+      description: "Search for games by name. Supports optional `mode=natural` for full-text natural language search and `filter` params to narrow results by platform, region, or country. The `include.platform` response wraps data in a `data` key, unlike v1."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: name
+        description: "(Required) - search term"
+        required: true
+        type: string
+      - in: query
+        name: fields
+        description: "(Optional) - comma-delimited: `players`, `publishers`, `genres`, `overview`, `last_updated`, `rating`, `platform`, `coop`, `youtube`, `os`, `processor`, `ram`, `hdd`, `video`, `sound`, `alternates`"
+        required: false
+        type: string
+      - in: query
+        name: mode
+        description: "(Optional) - set to `natural` to use full-text natural language search"
+        required: false
+        type: string
+      - in: query
+        name: "filter[platform]"
+        description: "(Optional) - filter by platform id, supports `,` delimited list"
+        required: false
+        type: string
+      - in: query
+        name: "filter[region_id]"
+        description: "(Optional) - filter by region id, supports `,` delimited list"
+        required: false
+        type: string
+      - in: query
+        name: "filter[country_id]"
+        description: "(Optional) - filter by country id, supports `,` delimited list"
+        required: false
+        type: string
+      - in: query
+        name: include
+        description: "(Optional) - comma-delimited: `boxart`, `platform`"
+        required: false
+        type: string
+      - in: query
+        name: page
+        description: "(Optional) - results page offset to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/GamesByGameID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 2
+                games:
+                  - id: 53
+                    game_title: "Sonic the Hedgehog"
+                    release_date: "1991-06-23"
+                    platform: 18
+                  - id: 432
+                    game_title: "Sonic the Hedgehog 2"
+                    release_date: "1992-11-24"
+                    platform: 18
+              include:
+                boxart:
+                  base_url:
+                    original: "https://cdn.thegamesdb.net/images/original/"
+                    small: "https://cdn.thegamesdb.net/images/small/"
+                    thumb: "https://cdn.thegamesdb.net/images/thumb/"
+                    cropped_center_thumb: "https://cdn.thegamesdb.net/images/cropped_center_thumb/"
+                    medium: "https://cdn.thegamesdb.net/images/medium/"
+                    large: "https://cdn.thegamesdb.net/images/large/"
+                  data:
+                    "53":
+                      - id: 17438
+                        type: "boxart"
+                        side: "front"
+                        filename: "boxart/front/53-1.jpg"
+                        resolution: "1521x2156"
+                platform:
+                  data:
+                    "18":
+                      id: 18
+                      name: "Sega Genesis"
+                      alias: "sega-genesis"
+              pages:
+                previous: null
+                current: "https://api.thegamesdb.net/v1.1/Games/ByGameName?apikey=APIKEY&name=Sonic+the+Hedgehog&page=1"
+                next: null
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing name parameter
+
+  /v1/Games/ByPlatformID:
+    get:
+      tags:
+      - Games
+      operationId: GamesByPlatformID
+      summary: "Fetch game(s) by platform id"
+      description: "Fetch all games for one or more platforms. Additional data can be requested via `fields` and `include` params."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: id
+        description: "(Required) - platform id, supports `,` delimited list"
+        required: true
+        type: string
+      - in: query
+        name: fields
+        description: "(Optional) - comma-delimited: `players`, `publishers`, `genres`, `overview`, `last_updated`, `rating`, `platform`, `coop`, `youtube`, `os`, `processor`, `ram`, `hdd`, `video`, `sound`, `alternates`"
+        required: false
+        type: string
+      - in: query
+        name: include
+        description: "(Optional) - comma-delimited: `boxart`, `platform`"
+        required: false
+        type: string
+      - in: query
+        name: page
+        description: "(Optional) - results page offset to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/GamesByGameID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 2
+                games:
+                  - id: 53
+                    game_title: "Sonic the Hedgehog"
+                    release_date: "1991-06-23"
+                    platform: 18
+                  - id: 432
+                    game_title: "Sonic the Hedgehog 2"
+                    release_date: "1992-11-24"
+                    platform: 18
+              pages:
+                previous: null
+                current: "https://api.thegamesdb.net/v1/Games/ByPlatformID?apikey=APIKEY&id=18&page=1"
+                next: "https://api.thegamesdb.net/v1/Games/ByPlatformID?apikey=APIKEY&id=18&page=2"
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid id parameter
+
+  /v1/Games/ByGameUniqueID:
+    get:
+      tags:
+      - Games
+      operationId: GamesByGameUniqueID
+      summary: "Fetch game(s) by unique id"
+      description: "Search for games by their unique/external identifier (e.g. ROM serial). Can be filtered by platform."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: uid
+        description: "(Required) - unique ID string"
+        required: true
+        type: string
+      - in: query
+        name: "filter[platform]"
+        description: "(Optional) - filter by platform id, supports `,` delimited list"
+        required: false
+        type: string
+      - in: query
+        name: fields
+        description: "(Optional) - comma-delimited: `players`, `publishers`, `genres`, `overview`, `last_updated`, `rating`, `platform`, `coop`, `youtube`, `os`, `processor`, `ram`, `hdd`, `video`, `sound`, `alternates`"
+        required: false
+        type: string
+      - in: query
+        name: include
+        description: "(Optional) - comma-delimited: `boxart`, `platform`"
+        required: false
+        type: string
+      - in: query
+        name: page
+        description: "(Optional) - results page offset to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/GamesByGameID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                games:
+                  - id: 53
+                    game_title: "Sonic the Hedgehog"
+                    release_date: "1991-06-23"
+                    platform: 18
+              pages:
+                previous: null
+                current: "https://api.thegamesdb.net/v1/Games/ByGameUniqueID?apikey=APIKEY&uid=GM-007037-00&filter%5Bplatform%5D=18&page=1"
+                next: null
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing uid parameter
+
+  /v1/Games/ByGameHash:
+    get:
+      tags:
+      - Games
+      operationId: GamesByGameHash
+      summary: "Fetch game(s) by ROM hash"
+      description: "Search for games by ROM hash. Can be filtered by platform and hash type."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: hash
+        description: "(Required) - hash string"
+        required: true
+        type: string
+      - in: query
+        name: "filter[platform]"
+        description: "(Optional) - filter by platform id, supports `,` delimited list"
+        required: false
+        type: string
+      - in: query
+        name: "filter[type]"
+        description: "(Optional) - hash type (e.g. `md5`, `crc`)"
+        required: false
+        type: string
+      - in: query
+        name: fields
+        description: "(Optional) - comma-delimited: `players`, `publishers`, `genres`, `overview`, `last_updated`, `rating`, `platform`, `coop`, `youtube`, `os`, `processor`, `ram`, `hdd`, `video`, `sound`, `alternates`"
+        required: false
+        type: string
+      - in: query
+        name: include
+        description: "(Optional) - comma-delimited: `boxart`, `platform`"
+        required: false
+        type: string
+      - in: query
+        name: page
+        description: "(Optional) - results page offset to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/GamesByGameID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                games:
+                  - id: 53
+                    game_title: "Sonic the Hedgehog"
+                    release_date: "1991-06-23"
+                    platform: 18
+              pages:
+                previous: null
+                current: "https://api.thegamesdb.net/v1/Games/ByGameHash?apikey=APIKEY&hash=a29da82b&filter%5Btype%5D=crc&page=1"
+                next: null
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing hash parameter
+
+  /v1/Games/Images:
+    get:
+      tags:
+      - Games
+      operationId: GamesImages
+      summary: "Fetch game(s) images by game(s) id"
+      description: "Fetch images for one or more games. Results can be filtered by image type."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: games_id
+        description: "(Required) - game id, supports `,` delimited list"
+        required: true
+        type: string
+      - in: query
+        name: "filter[type]"
+        description: "(Optional) - comma-delimited: `fanart`, `banner`, `boxart`, `screenshot`, `clearlogo`, `titlescreen`"
+        required: false
+        type: string
+      - in: query
+        name: page
+        description: "(Optional) - results page offset to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/GamesImages'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 3
+                base_url:
+                  original: "https://cdn.thegamesdb.net/images/original/"
+                  small: "https://cdn.thegamesdb.net/images/small/"
+                  thumb: "https://cdn.thegamesdb.net/images/thumb/"
+                  cropped_center_thumb: "https://cdn.thegamesdb.net/images/cropped_center_thumb/"
+                  medium: "https://cdn.thegamesdb.net/images/medium/"
+                  large: "https://cdn.thegamesdb.net/images/large/"
+                images:
+                  "53":
+                    - id: 17438
+                      type: "boxart"
+                      side: "front"
+                      filename: "boxart/front/53-1.jpg"
+                      resolution: "1521x2156"
+                    - id: 17439
+                      type: "boxart"
+                      side: "back"
+                      filename: "boxart/back/53-1.jpg"
+                      resolution: "1521x2156"
+                    - id: 4521
+                      type: "screenshot"
+                      side: null
+                      filename: "screenshots/53-1.jpg"
+                      resolution: "320x224"
+              pages:
+                previous: null
+                current: "https://api.thegamesdb.net/v1/Games/Images?apikey=APIKEY&games_id=53&page=1"
+                next: null
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid games_id parameter
+
+  /v1/Games/Videos:
+    get:
+      tags:
+      - Games
+      operationId: GamesVideos
+      summary: "Fetch game(s) videos by game(s) id"
+      description: "Fetch videos for one or more games. Results are keyed by game id. Prepend `base_url` to each `filename` to construct the full CDN URL."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: games_id
+        description: "(Required) - game id, supports `,` delimited list"
+        required: true
+        type: string
+      - in: query
+        name: page
+        description: "(Optional) - results page offset to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/GamesVideos'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                base_url: "https://cdn.thegamesdb.net/"
+                videos:
+                  "53":
+                    - id: 1
+                      filename: "videos/53/53-1.mp4"
+                      dateadded: "2024-06-01 12:00:00"
+              pages:
+                previous: null
+                current: "https://api.thegamesdb.net/v1/Games/Videos?apikey=APIKEY&games_id=53&page=1"
+                next: null
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid games_id parameter
+
+  /v1/Games/Updates:
+    get:
+      tags:
+      - Games
+      operationId: GamesUpdates
+      summary: "Fetch games update log"
+      description: "Fetch a log of recent game edits, either from a given `last_edit_id` (preferred, for incremental sync) or within the last N minutes via `time`."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: last_edit_id
+        description: "(Optional) - return edits with id greater than this value (use for incremental sync)"
+        required: false
+        type: integer
+      - in: query
+        name: time
+        description: "(Optional) - return edits from the last N minutes (default: 1440). Used when `last_edit_id` is not provided."
+        required: false
+        type: integer
+      - in: query
+        name: page
+        description: "(Optional) - results page offset to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/GamesUpdates'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 2
+                updates:
+                  - edit_id: 23159
+                    game_id: 60901
+                    timestamp: "2024-06-01 14:32:10"
+                    type: "boxart"
+                    value: "boxart/front/60901-1.jpg"
+                  - edit_id: 23160
+                    game_id: 53
+                    timestamp: "2024-06-01 15:10:45"
+                    type: "game_title"
+                    value: "Sonic the Hedgehog"
+              pages:
+                previous: null
+                current: "https://api.thegamesdb.net/v1/Games/Updates?apikey=APIKEY&last_edit_id=23158&page=1"
+                next: null
+        403:
+          description: bad API key or hit rate-limit cap
+
+  /v1/Platforms:
+    get:
+      tags:
+      - Platforms
+      operationId: Platforms
+      summary: "Fetch all platforms"
+      description: "Fetch the full list of platforms. Optionally include boxart images via `include=boxart`."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: fields
+        description: "(Optional) - comma-delimited: `icon`, `console`, `controller`, `developer`, `manufacturer`, `media`, `cpu`, `memory`, `graphics`, `sound`, `maxcontrollers`, `display`, `overview`, `youtube`"
+        required: false
+        type: string
+      - in: query
+        name: include
+        description: "(Optional) - set to `boxart` to include platform images"
+        required: false
+        type: string
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/Platforms'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 2
+                platforms:
+                  "3":
+                    id: 3
+                    name: "Nintendo 64"
+                    alias: "nintendo-64"
+                    developer: "Nintendo"
+                  "18":
+                    id: 18
+                    name: "Sega Genesis"
+                    alias: "sega-genesis"
+                    developer: "Sega"
+        403:
+          description: bad API key or hit rate-limit cap
+
+  /v1/Platforms/ByPlatformID:
+    get:
+      tags:
+      - Platforms
+      operationId: PlatformsByPlatformID
+      summary: "Fetch platform(s) by id"
+      description: "Fetch one or more platforms by id. Optionally include boxart images via `include=boxart`."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: id
+        description: "(Required) - supports `,` delimited list"
+        required: true
+        type: integer
+      - in: query
+        name: fields
+        description: "(Optional) - comma-delimited: `icon`, `console`, `controller`, `developer`, `manufacturer`, `media`, `cpu`, `memory`, `graphics`, `sound`, `maxcontrollers`, `display`, `overview`, `youtube`"
+        required: false
+        type: string
+      - in: query
+        name: include
+        description: "(Optional) - set to `boxart` to include platform images"
+        required: false
+        type: string
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/PlatformsByPlatformID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                platforms:
+                  "18":
+                    id: 18
+                    name: "Sega Genesis"
+                    alias: "sega-genesis"
+                    overview: "The Sega Genesis, known as the Mega Drive outside North America, is a 16-bit home video game console developed and sold by Sega."
+                    developer: "Sega"
+                    cpu: "Motorola 68000"
+                    memory: "64KB"
+                    graphics: "VDP"
+                    sound: "Yamaha YM2612"
+                    maxcontrollers: "2"
+                    display: "320x224"
+                    media: "Cartridge"
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid id parameter
+
+  /v1/Platforms/ByPlatformName:
+    get:
+      tags:
+      - Platforms
+      operationId: PlatformsByPlatformName
+      summary: "Fetch platform(s) by name"
+      description: "Search for platforms by name. Optionally include boxart images via `include=boxart`."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: name
+        description: "(Required) - search term"
+        required: true
+        type: string
+      - in: query
+        name: fields
+        description: "(Optional) - comma-delimited: `icon`, `console`, `controller`, `developer`, `manufacturer`, `media`, `cpu`, `memory`, `graphics`, `sound`, `maxcontrollers`, `display`, `overview`, `youtube`"
+        required: false
+        type: string
+      - in: query
+        name: include
+        description: "(Optional) - set to `boxart` to include platform images"
+        required: false
+        type: string
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/PlatformsByPlatformName'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                platforms:
+                  - id: 18
+                    name: "Sega Genesis"
+                    alias: "sega-genesis"
+                    developer: "Sega"
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing name parameter
+
+  /v1/Platforms/Images:
+    get:
+      tags:
+      - Platforms
+      operationId: PlatformsImages
+      summary: "Fetch platform(s) images by platform(s) id"
+      description: "Fetch images for one or more platforms. Results can be filtered by image type."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: platforms_id
+        description: "(Required) - platform id, supports `,` delimited list"
+        required: true
+        type: string
+      - in: query
+        name: "filter[type]"
+        description: "(Optional) - comma-delimited: `fanart`, `banner`, `boxart`"
+        required: false
+        type: string
+      - in: query
+        name: page
+        description: "(Optional) - results page offset to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/PlatformsImages'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 2
+                base_url:
+                  original: "https://cdn.thegamesdb.net/images/original/"
+                  small: "https://cdn.thegamesdb.net/images/small/"
+                  thumb: "https://cdn.thegamesdb.net/images/thumb/"
+                  cropped_center_thumb: "https://cdn.thegamesdb.net/images/cropped_center_thumb/"
+                  medium: "https://cdn.thegamesdb.net/images/medium/"
+                  large: "https://cdn.thegamesdb.net/images/large/"
+                images:
+                  "18":
+                    - id: 72
+                      type: "fanart"
+                      filename: "platform/fanart/18-1.jpg"
+                    - id: 73
+                      type: "boxart"
+                      filename: "platform/consoleart/18-1.png"
+              pages:
+                previous: null
+                current: "https://api.thegamesdb.net/v1/Platforms/Images?apikey=APIKEY&platforms_id=18&page=1"
+                next: null
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid platforms_id parameter
+
+  /v1/Genres:
+    get:
+      tags:
+      - Genres
+      operationId: Genres
+      summary: "Fetch all genres"
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/Genres'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 3
+                genres:
+                  "1":
+                    id: 1
+                    name: "Action"
+                  "2":
+                    id: 2
+                    name: "Adventure"
+                  "8":
+                    id: 8
+                    name: "Platform"
+        403:
+          description: bad API key or hit rate-limit cap
+
+  /v1/Genres/ByGenreID:
+    get:
+      tags:
+      - Genres
+      operationId: GenresByID
+      summary: "Fetch genre(s) by id"
+      description: "Fetch one or more genres by id, returned as an object keyed by id."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: id
+        description: "(Required) - supports `,` delimited list"
+        required: true
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/GenresByID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                genres:
+                  "1":
+                    id: 1
+                    name: "Action"
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid id parameter
+
+  /v1/Developers:
+    get:
+      tags:
+      - Developers
+      operationId: Developers
+      summary: "Fetch all developers"
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: limit
+        description: "(Optional) - maximum number of results to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/Developers'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 2
+                developers:
+                  "202":
+                    id: 202
+                    name: "Acclaim Studios Manchester"
+                  "1296":
+                    id: 1296
+                    name: "Sega"
+        403:
+          description: bad API key or hit rate-limit cap
+
+  /v1/Developers/ByDeveloperID:
+    get:
+      tags:
+      - Developers
+      operationId: DevelopersByID
+      summary: "Fetch developer(s) by id"
+      description: "Fetch one or more developers by id, returned as an object keyed by id."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: id
+        description: "(Required) - supports `,` delimited list"
+        required: true
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/DevelopersByID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                developers:
+                  "1296":
+                    id: 1296
+                    name: "Sega"
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid id parameter
+
+  /v1/Publishers:
+    get:
+      tags:
+      - Publishers
+      operationId: Publishers
+      summary: "Fetch all publishers"
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: limit
+        description: "(Optional) - maximum number of results to return"
+        required: false
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/Publishers'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 2
+                publishers:
+                  "1":
+                    id: 1
+                    name: "Sega"
+                  "2374":
+                    id: 2374
+                    name: ".GEARS Studios"
+        403:
+          description: bad API key or hit rate-limit cap
+
+  /v1/Publishers/ByPublisherID:
+    get:
+      tags:
+      - Publishers
+      operationId: PublishersByID
+      summary: "Fetch publisher(s) by id"
+      description: "Fetch one or more publishers by id, returned as an object keyed by id."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: id
+        description: "(Required) - supports `,` delimited list"
+        required: true
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/PublishersByID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                publishers:
+                  "1":
+                    id: 1
+                    name: "Sega"
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid id parameter
+
+  /v1/Regions:
+    get:
+      tags:
+      - Regions
+      operationId: RegionsList
+      summary: "Fetch all regions"
+      description: "Fetch the full list of regions, keyed by region id."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/RegionsList'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 4
+                regions:
+                  "1":
+                    id: 1
+                    name: "North America"
+                  "2":
+                    id: 2
+                    name: "Europe"
+                  "3":
+                    id: 3
+                    name: "Japan"
+                  "4":
+                    id: 4
+                    name: "Australia"
+        403:
+          description: bad API key or hit rate-limit cap
+
+  /v1/Regions/GetRegions:
+    get:
+      tags:
+      - Regions
+      operationId: RegionsByID
+      summary: "Fetch region(s) by id"
+      description: "Fetch one or more regions by id, returned as an array."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: id
+        description: "(Required) - supports `,` delimited list"
+        required: true
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/RegionsByID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                regions:
+                  - id: 1
+                    name: "North America"
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid id parameter
+
+  /v1/Countries:
+    get:
+      tags:
+      - Countries
+      operationId: Countries
+      summary: "Fetch all countries"
+      description: "Fetch the full list of countries, keyed by country id."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/CountriesList'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 3
+                countries:
+                  "1":
+                    id: 1
+                    name: "United States"
+                  "2":
+                    id: 2
+                    name: "Japan"
+                  "3":
+                    id: 3
+                    name: "United Kingdom"
+        403:
+          description: bad API key or hit rate-limit cap
+
+  /v1/Countries/ByCountryID:
+    get:
+      tags:
+      - Countries
+      operationId: CountriesByID
+      summary: "Fetch country/countries by id"
+      description: "Fetch one or more countries by id, returned as an object keyed by id."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      - in: query
+        name: id
+        description: "(Required) - supports `,` delimited list"
+        required: true
+        type: integer
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/CountriesByID'
+          examples:
+            application/json:
+              code: 200
+              status: "Success"
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+              data:
+                count: 1
+                countries:
+                  "1":
+                    id: 1
+                    name: "United States"
+        403:
+          description: bad API key or hit rate-limit cap
+        406:
+          description: missing or invalid id parameter
+
+  /v1/API/Limit:
+    get:
+      tags:
+      - Utility
+      operationId: APILimit
+      summary: "Check API key allowance"
+      description: "Returns the remaining monthly allowance and refresh timer for the given API key. Does not count against your allowance."
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: apikey
+        description: "(Required)"
+        required: true
+        type: string
+      responses:
+        200:
+          description: result
+          schema:
+            $ref: '#/definitions/APILimit'
+          examples:
+            application/json:
+              remaining_monthly_allowance: 249
+              extra_allowance: 0
+              allowance_refresh_timer: 2592000
+        401:
+          description: missing API key
+
+definitions:
+  BaseApiResponse:
+    type: object
+    required:
+    - code
+    - status
+    - remaining_monthly_allowance
+    - extra_allowance
+    properties:
+      code:
+        type: integer
+        minimum: 0
+      status:
+        type: string
+      remaining_monthly_allowance:
+        type: integer
+        minimum: 0
+      extra_allowance:
+        type: integer
+        minimum: 0
+      allowance_refresh_timer:
+        type: integer
+        description: "Seconds until monthly allowance resets. null for private/unlimited keys."
+    example:
+      code: 200
+      status: "Success"
+      remaining_monthly_allowance: 249
+      extra_allowance: 0
+      allowance_refresh_timer: 2592000
+
+  PaginatedApiResponse:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - pages
+      properties:
+        pages:
+          type: object
+          properties:
+            previous:
+              type: string
+              nullable: true
+            current:
+              type: string
+            next:
+              type: string
+              nullable: true
+          example:
+            previous: null
+            current: "https://api.thegamesdb.net/v1/Games/ByGameID?apikey=APIKEY&id=53&page=1"
+            next: null
+
+  GamesByGameID:
+    allOf:
+    - $ref: '#/definitions/PaginatedApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - games
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            games:
+              type: array
+              items:
+                $ref: '#/definitions/Game'
+        include:
+          type: object
+          properties:
+            boxart:
+              type: object
+              properties:
+                base_url:
+                  $ref: '#/definitions/ImageBaseUrlMeta'
+                data:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items:
+                      $ref: '#/definitions/GameImage'
+            platform:
+              type: object
+              properties:
+                data:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/definitions/PlatformSkinny'
+
+  GamesByGameID_v1:
+    allOf:
+    - $ref: '#/definitions/PaginatedApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - games
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            games:
+              type: array
+              items:
+                $ref: '#/definitions/Game'
+        include:
+          type: object
+          properties:
+            boxart:
+              type: object
+              properties:
+                base_url:
+                  $ref: '#/definitions/ImageBaseUrlMeta'
+                data:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items:
+                      $ref: '#/definitions/GameImage'
+            platform:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/PlatformSkinny'
+
+  GamesImages:
+    allOf:
+    - $ref: '#/definitions/PaginatedApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - base_url
+          - images
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            base_url:
+              $ref: '#/definitions/ImageBaseUrlMeta'
+            images:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/definitions/GameImage'
+
+  GamesUpdates:
+    allOf:
+    - $ref: '#/definitions/PaginatedApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - updates
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            updates:
+              type: array
+              items:
+                $ref: '#/definitions/UpdateModel'
+
+  Platforms:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - platforms
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            platforms:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Platform'
+        include:
+          type: object
+          properties:
+            images:
+              type: object
+              properties:
+                base_url:
+                  $ref: '#/definitions/ImageBaseUrlMeta'
+                data:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items:
+                      $ref: '#/definitions/PlatformImage'
+
+  PlatformsByPlatformID:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - platforms
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            platforms:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Platform'
+        include:
+          type: object
+          properties:
+            images:
+              type: object
+              properties:
+                base_url:
+                  $ref: '#/definitions/ImageBaseUrlMeta'
+                data:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items:
+                      $ref: '#/definitions/PlatformImage'
+
+  PlatformsByPlatformName:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - platforms
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            platforms:
+              type: array
+              items:
+                $ref: '#/definitions/Platform'
+        include:
+          type: object
+          properties:
+            images:
+              type: object
+              properties:
+                base_url:
+                  $ref: '#/definitions/ImageBaseUrlMeta'
+                data:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items:
+                      $ref: '#/definitions/PlatformImage'
+
+  PlatformsImages:
+    allOf:
+    - $ref: '#/definitions/PaginatedApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - base_url
+          - images
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            base_url:
+              $ref: '#/definitions/ImageBaseUrlMeta'
+            images:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/definitions/PlatformImage'
+
+  Genres:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - genres
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            genres:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Genre'
+
+  Developers:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - developers
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            developers:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Developer'
+
+  Publishers:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - publishers
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            publishers:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Publisher'
+
+  RegionsList:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - regions
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            regions:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Region'
+
+  RegionsByID:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - regions
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            regions:
+              type: array
+              items:
+                $ref: '#/definitions/Region'
+
+  CountriesList:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - countries
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            countries:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Country'
+
+  GenresByID:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - genres
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            genres:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Genre'
+
+  DevelopersByID:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - developers
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            developers:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Developer'
+
+  PublishersByID:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - publishers
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            publishers:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Publisher'
+
+  CountriesByID:
+    allOf:
+    - $ref: '#/definitions/BaseApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - countries
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            countries:
+              type: object
+              additionalProperties:
+                $ref: '#/definitions/Country'
+
+  APILimit:
+    type: object
+    properties:
+      remaining_monthly_allowance:
+        type: integer
+        minimum: 0
+      extra_allowance:
+        type: integer
+        minimum: 0
+      allowance_refresh_timer:
+        type: integer
+        nullable: true
+        description: "Seconds until monthly allowance resets. null for private/unlimited keys."
+    example:
+      remaining_monthly_allowance: 249
+      extra_allowance: 0
+      allowance_refresh_timer: 2592000
+
+  Game:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 0
+      game_title:
+        type: string
+      release_date:
+        type: string
+      platform:
+        type: integer
+        minimum: 0
+      region_id:
+        type: integer
+        nullable: true
+      country_id:
+        type: integer
+        nullable: true
+      players:
+        type: integer
+        minimum: 0
+        nullable: true
+      overview:
+        type: string
+        nullable: true
+      last_updated:
+        type: string
+      rating:
+        type: string
+        nullable: true
+      coop:
+        type: string
+        nullable: true
+      youtube:
+        type: string
+        nullable: true
+      os:
+        type: string
+        nullable: true
+      processor:
+        type: string
+        nullable: true
+      ram:
+        type: string
+        nullable: true
+      hdd:
+        type: string
+        nullable: true
+      video:
+        type: string
+        nullable: true
+      sound:
+        type: string
+        nullable: true
+      developers:
+        type: array
+        items:
+          type: integer
+          minimum: 0
+      genres:
+        type: array
+        items:
+          type: integer
+          minimum: 0
+      publishers:
+        type: array
+        items:
+          type: integer
+          minimum: 0
+      alternates:
+        type: array
+        items:
+          type: string
+    example:
+      id: 53
+      game_title: "Sonic the Hedgehog"
+      release_date: "1991-06-23"
+      platform: 18
+      region_id: 1
+      country_id: 2
+      players: 1
+      overview: "Join Sonic as he races through six zones to stop the evil Dr. Eggman from enslaving the animal inhabitants of South Island."
+      last_updated: "2022-03-15 10:22:45"
+      rating: "E - Everyone"
+      coop: "No"
+      youtube: "E8VPmADC4aA"
+      os: null
+      processor: null
+      ram: null
+      hdd: null
+      video: null
+      sound: null
+      developers: [1296]
+      genres: [1, 8]
+      publishers: [1]
+      alternates: ["Sonic the Hedgehog (JP)"]
+
+  Platform:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 0
+      name:
+        type: string
+      alias:
+        type: string
+      icon:
+        type: string
+        nullable: true
+      console:
+        type: string
+        nullable: true
+      controller:
+        type: string
+        nullable: true
+      developer:
+        type: string
+        nullable: true
+      manufacturer:
+        type: string
+        nullable: true
+      media:
+        type: string
+        nullable: true
+      cpu:
+        type: string
+        nullable: true
+      memory:
+        type: string
+        nullable: true
+      graphics:
+        type: string
+        nullable: true
+      sound:
+        type: string
+        nullable: true
+      maxcontrollers:
+        type: string
+        nullable: true
+      display:
+        type: string
+        nullable: true
+      overview:
+        type: string
+        nullable: true
+      youtube:
+        type: string
+        nullable: true
+    example:
+      id: 18
+      name: "Sega Genesis"
+      alias: "sega-genesis"
+      icon: "sega-genesis-1336524230.png"
+      console: "18.png"
+      controller: "18-1.jpg"
+      developer: "Sega"
+      manufacturer: "Sega"
+      media: "Cartridge"
+      cpu: "Motorola 68000"
+      memory: "64KB"
+      graphics: "VDP"
+      sound: "Yamaha YM2612"
+      maxcontrollers: "2"
+      display: "320x224"
+      overview: "The Sega Genesis, known as the Mega Drive outside North America, is a 16-bit home video game console developed and sold by Sega."
+      youtube: null
+
+  PlatformSkinny:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 0
+      name:
+        type: string
+      alias:
+        type: string
+    example:
+      id: 18
+      name: "Sega Genesis"
+      alias: "sega-genesis"
+
+  ImageBaseUrlMeta:
+    type: object
+    properties:
+      original:
+        type: string
+      small:
+        type: string
+      thumb:
+        type: string
+      cropped_center_thumb:
+        type: string
+      medium:
+        type: string
+      large:
+        type: string
+    example:
+      original: "https://cdn.thegamesdb.net/images/original/"
+      small: "https://cdn.thegamesdb.net/images/small/"
+      thumb: "https://cdn.thegamesdb.net/images/thumb/"
+      cropped_center_thumb: "https://cdn.thegamesdb.net/images/cropped_center_thumb/"
+      medium: "https://cdn.thegamesdb.net/images/medium/"
+      large: "https://cdn.thegamesdb.net/images/large/"
+
+  PlatformImage:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 0
+      type:
+        type: string
+        description: "fanart, banner, boxart"
+      filename:
+        type: string
+    example:
+      id: 72
+      type: "fanart"
+      filename: "platform/fanart/18-1.jpg"
+
+  GameImage:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 0
+      type:
+        type: string
+        description: "fanart, banner, boxart, screenshot, clearlogo, titlescreen"
+      side:
+        type: string
+        nullable: true
+        description: "front, back (for boxart)"
+      filename:
+        type: string
+      resolution:
+        type: string
+        nullable: true
+    example:
+      id: 17438
+      type: "boxart"
+      side: "front"
+      filename: "boxart/front/53-1.jpg"
+      resolution: "1521x2156"
+
+  UpdateModel:
+    type: object
+    properties:
+      edit_id:
+        type: integer
+        minimum: 0
+      game_id:
+        type: integer
+        minimum: 0
+      timestamp:
+        type: string
+      type:
+        type: string
+      value:
+        type: string
+    example:
+      edit_id: 23159
+      game_id: 53
+      timestamp: "2024-06-01 14:32:10"
+      type: "boxart"
+      value: "boxart/front/53-1.jpg"
+
+  Developer:
+    type: object
+    required:
+    - id
+    - name
+    properties:
+      id:
+        type: integer
+        minimum: 0
+      name:
+        type: string
+    example:
+      id: 1296
+      name: "Sega"
+
+  Genre:
+    type: object
+    required:
+    - id
+    - name
+    properties:
+      id:
+        type: integer
+        minimum: 0
+      name:
+        type: string
+    example:
+      id: 1
+      name: "Action"
+
+  Publisher:
+    type: object
+    required:
+    - id
+    - name
+    properties:
+      id:
+        type: integer
+        minimum: 0
+      name:
+        type: string
+    example:
+      id: 1
+      name: "Sega"
+
+  Region:
+    type: object
+    required:
+    - id
+    - name
+    properties:
+      id:
+        type: integer
+        minimum: 0
+      name:
+        type: string
+    example:
+      id: 1
+      name: "North America"
+
+  Country:
+    type: object
+    required:
+    - id
+    - name
+    properties:
+      id:
+        type: integer
+        minimum: 0
+      name:
+        type: string
+    example:
+      id: 2
+      name: "Japan"
+
+  GamesVideos:
+    allOf:
+    - $ref: '#/definitions/PaginatedApiResponse'
+    - type: object
+      required:
+      - data
+      properties:
+        data:
+          type: object
+          required:
+          - count
+          - base_url
+          - videos
+          properties:
+            count:
+              type: integer
+              minimum: 0
+              description: "Number of games with videos returned"
+            base_url:
+              type: string
+              description: "Prepend to filename to get the full CDN URL"
+              example: "https://cdn.thegamesdb.net/"
+            videos:
+              type: object
+              description: "Object keyed by game id, each value is an array of video objects"
+              additionalProperties:
+                type: array
+                items:
+                  $ref: '#/definitions/GameVideo'
+
+  GameVideo:
+    type: object
+    properties:
+      id:
+        type: integer
+        minimum: 0
+        description: "Unique video record id"
+      filename:
+        type: string
+        description: "Relative path — prepend base_url to get the full CDN URL"
+      dateadded:
+        type: string
+        description: "UTC datetime the video was uploaded"
+    example:
+      id: 1
+      filename: "videos/53/53-1.mp4"
+      dateadded: "2024-06-01 12:00:00"
+
+schemes:
+- https
+
+host: api.thegamesdb.net
+basePath: /
