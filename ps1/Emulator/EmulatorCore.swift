@@ -52,6 +52,10 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
     // Стабильные C-строки значений; читается только с эмуляционного потока
     private var cStringCache: [String: UnsafeMutablePointer<CChar>] = [:]
 
+    // Смена дисков: колбэки ядра, зарегистрированные при загрузке игры.
+    // Пишется и читается только на эмуляционном потоке (env callback / performSync)
+    private var diskControl: retro_disk_control_ext_callback?
+
     static let systemDirectory: URL = {
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("System", isDirectory: true)
@@ -207,6 +211,7 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
         saveCover()
         persistSaveRAM()
         audio.stop()
+        diskControl = nil
         retro_unload_game()
         retro_deinit()
     }
@@ -266,6 +271,35 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
             try? FileManager.default.removeItem(at: autoURL)
         }
         _ = performSync { retro_reset(); return true }
+    }
+
+    // MARK: - Многодисковые игры
+
+    /// Сколько дисков у игры и какой вставлен сейчас.
+    func diskInfo() -> (count: Int, current: Int) {
+        performSync { [self] in
+            guard let dc = diskControl,
+                  let numImages = dc.get_num_images,
+                  let imageIndex = dc.get_image_index else { return (1, 0) }
+            return (Int(numImages()), Int(imageIndex()))
+        } ?? (1, 0)
+    }
+
+    /// Смена диска: «открываем лоток», меняем образ, через секунду «закрываем» —
+    /// пауза нужна, чтобы игра успела заметить извлечение диска.
+    func switchDisk(to index: Int) {
+        _ = performSync { [self] in
+            guard let dc = diskControl else { return false }
+            _ = dc.set_eject_state?(true)
+            _ = dc.set_image_index?(UInt32(index))
+            return true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            _ = self?.performSync {
+                _ = self?.diskControl?.set_eject_state?(false)
+                return true
+            }
+        }
     }
 
     /// Сохранить точку продолжения (при сворачивании приложения).
@@ -379,6 +413,15 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
             return true
 
         case RETRO_ENVIRONMENT_SET_GEOMETRY: // 37 — размеры читаем из каждого кадра
+            return true
+
+        case RETRO_ENVIRONMENT_GET_DISK_CONTROL_INTERFACE_VERSION: // 57
+            data?.assumingMemoryBound(to: UInt32.self).pointee = 1
+            return true
+
+        case RETRO_ENVIRONMENT_SET_DISK_CONTROL_EXT_INTERFACE: // 58
+            guard let data else { return false }
+            diskControl = data.assumingMemoryBound(to: retro_disk_control_ext_callback.self).pointee
             return true
 
         default:

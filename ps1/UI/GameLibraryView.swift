@@ -50,7 +50,11 @@ struct GameLibraryView: View {
     }()
 
     /// Расширения образов, которые запускаются (треки .bin с .cue не показываем)
-    private static let playableExtensions: Set<String> = ["chd", "cue", "pbp", "iso", "img", "bin"]
+    private static let playableExtensions: Set<String> = ["m3u", "chd", "cue", "pbp", "iso", "img", "bin"]
+
+    /// «Game (Disc 2).chd» → база «Game», номер 2. Понимает Disc/Disk/CD
+    private static let discRegex = /^(.+?)[\s._-]*[(\[]?(?:disc|disk|cd)[\s._-]*(\d+)[)\]]?/
+        .ignoresCase()
 
     private var selectedCover: UIImage? {
         guard games.indices.contains(selectedIndex) else { return nil }
@@ -476,14 +480,24 @@ struct GameLibraryView: View {
     // MARK: - Импорт и файлы
 
     private func reloadGames() {
-        let files = (try? FileManager.default.contentsOfDirectory(
+        var files = (try? FileManager.default.contentsOfDirectory(
             at: Self.gamesDirectory, includingPropertiesForKeys: nil)) ?? []
+
+        // Многодисковые игры склеиваем в .m3u-плейлисты автоматически
+        if generateMultiDiscPlaylists(files: files) {
+            files = (try? FileManager.default.contentsOfDirectory(
+                at: Self.gamesDirectory, includingPropertiesForKeys: nil)) ?? []
+        }
 
         let cueBaseNames = Set(files.filter { $0.pathExtension.lowercased() == "cue" }
             .map { $0.deletingPathExtension().lastPathComponent })
 
+        // Диски, входящие в плейлисты, отдельными карточками не показываем
+        let insidePlaylists = filesReferencedByPlaylists(files: files)
+
         games = files
             .filter { Self.playableExtensions.contains($0.pathExtension.lowercased()) }
+            .filter { !insidePlaylists.contains($0.lastPathComponent) }
             .filter { url in
                 // .bin/.img прячем, если рядом лежит их .cue
                 let ext = url.pathExtension.lowercased()
@@ -494,6 +508,52 @@ struct GameLibraryView: View {
             .map { Game(url: $0) }
 
         selectedIndex = max(0, min(games.count - 1, selectedIndex))
+    }
+
+    /// Находит группы «(Disc 1) / (Disc 2)…» и пишет для них .m3u.
+    /// Возвращает true, если что-то создалось или обновилось.
+    @discardableResult
+    private func generateMultiDiscPlaylists(files: [URL]) -> Bool {
+        let discExtensions: Set<String> = ["cue", "chd", "pbp", "iso", "img"]
+        var groups: [String: [(number: Int, url: URL)]] = [:]
+
+        for url in files where discExtensions.contains(url.pathExtension.lowercased()) {
+            let name = url.deletingPathExtension().lastPathComponent
+            guard let match = try? Self.discRegex.firstMatch(in: name),
+                  let number = Int(match.output.2) else { continue }
+            let base = String(match.output.1)
+                .trimmingCharacters(in: CharacterSet(charactersIn: " -_.(["))
+            guard !base.isEmpty else { continue }
+            groups[base, default: []].append((number, url))
+        }
+
+        var changed = false
+        for (base, discs) in groups where discs.count > 1 {
+            let content = discs.sorted { $0.number < $1.number }
+                .map(\.url.lastPathComponent)
+                .joined(separator: "\n") + "\n"
+            let playlistURL = Self.gamesDirectory
+                .appendingPathComponent(base).appendingPathExtension("m3u")
+            if (try? String(contentsOf: playlistURL, encoding: .utf8)) != content {
+                try? content.write(to: playlistURL, atomically: true, encoding: .utf8)
+                changed = true
+            }
+        }
+        return changed
+    }
+
+    private func filesReferencedByPlaylists(files: [URL]) -> Set<String> {
+        var referenced: Set<String> = []
+        for url in files where url.pathExtension.lowercased() == "m3u" {
+            guard let content = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            for line in content.split(whereSeparator: \.isNewline) {
+                let name = line.trimmingCharacters(in: .whitespaces)
+                if !name.isEmpty && !name.hasPrefix("#") {
+                    referenced.insert(name)
+                }
+            }
+        }
+        return referenced
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {
@@ -524,6 +584,25 @@ struct GameLibraryView: View {
     }
 
     private func deleteGame(_ game: Game) {
+        // Для плейлиста удаляем и все его диски (вместе с их .bin-треками)
+        if game.url.pathExtension.lowercased() == "m3u",
+           let content = try? String(contentsOf: game.url, encoding: .utf8) {
+            let allFiles = (try? FileManager.default.contentsOfDirectory(
+                at: Self.gamesDirectory, includingPropertiesForKeys: nil)) ?? []
+            for line in content.split(whereSeparator: \.isNewline) {
+                let name = line.trimmingCharacters(in: .whitespaces)
+                guard !name.isEmpty else { continue }
+                let discURL = Self.gamesDirectory.appendingPathComponent(name)
+                try? FileManager.default.removeItem(at: discURL)
+                // .bin-треки, принадлежащие удаляемому .cue
+                let baseName = discURL.deletingPathExtension().lastPathComponent
+                for file in allFiles where
+                    file.deletingPathExtension().lastPathComponent == baseName &&
+                    ["bin", "img"].contains(file.pathExtension.lowercased()) {
+                    try? FileManager.default.removeItem(at: file)
+                }
+            }
+        }
         try? FileManager.default.removeItem(at: game.url)
         try? FileManager.default.removeItem(at: game.coverURL)
         try? FileManager.default.removeItem(at: game.saveStateURL)

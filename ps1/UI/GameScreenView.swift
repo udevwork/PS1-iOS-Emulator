@@ -90,6 +90,26 @@ struct GameScreenView: View {
                 Label("Начать заново", systemImage: "arrow.counterclockwise")
             }
 
+            let disks = EmulatorCore.shared.diskInfo()
+            if disks.count > 1 {
+                Menu {
+                    ForEach(0..<disks.count, id: \.self) { index in
+                        Button {
+                            EmulatorCore.shared.switchDisk(to: index)
+                        } label: {
+                            if index == disks.current {
+                                Label("Диск \(index + 1)", systemImage: "checkmark")
+                            } else {
+                                Text("Диск \(index + 1)")
+                            }
+                        }
+                        .disabled(index == disks.current)
+                    }
+                } label: {
+                    Label("Сменить диск", systemImage: "opticaldisc")
+                }
+            }
+
             Divider()
 
             Button(role: .destructive) {
