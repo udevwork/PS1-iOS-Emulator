@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Артефакты сборки ядра (пересобираются по README)
+Vendor/pcsx_rearmed/lib/
+Vendor/pcsx_rearmed/**/*.o
+Vendor/pcsx_rearmed/**/*.d
+Vendor/pcsx_rearmed/pcsx_rearmed_libretro_ios.dylib
