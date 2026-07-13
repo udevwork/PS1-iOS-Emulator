@@ -11,6 +11,30 @@ enum BoxartFetcher {
     private static let ps1PlatformID = 10 // «Sony Playstation»
     private static let attemptedKey = "boxartAttemptedGames"
 
+    enum FetchError: LocalizedError {
+        /// Сервер ответил не 200: код + начало тела (там причина от TheGamesDB)
+        case http(Int, String?)
+        /// Запрос прошёл, но игры/арта в базе нет
+        case notFound(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .http(let code, let body):
+                "TheGamesDB HTTP \(code)" + (body.map { "\n\($0)" } ?? "")
+            case .notFound(let title):
+                "No box art found for “\(title)”"
+            }
+        }
+    }
+
+    /// Забыть, что для этих файлов уже искали арт: файл переимпортировали
+    /// или удалили — при следующем появлении ищем заново.
+    static func forgetAttempts(_ ids: [String]) {
+        var attempted = Set(UserDefaults.standard.stringArray(forKey: attemptedKey) ?? [])
+        attempted.subtract(ids)
+        UserDefaults.standard.set(Array(attempted), forKey: attemptedKey)
+    }
+
     /// Догружает недостающие обложки (Pro). Возвращает true, если что-то скачалось.
     static func fetchMissing(for games: [Game]) async -> Bool {
         guard FeatureGate.isPro else { return false }
@@ -35,6 +59,15 @@ enum BoxartFetcher {
         return downloadedAny
     }
 
+    /// Принудительная загрузка обложки одной игры (из контекстного меню).
+    /// Не молчит: любая причина неудачи вылетает ошибкой с подробностями.
+    static func fetchNow(for game: Game) async throws {
+        guard let imageData = try await searchBoxart(title: game.searchTitle) else {
+            throw FetchError.notFound(game.searchTitle)
+        }
+        try imageData.write(to: game.boxartURL)
+    }
+
     private static func searchBoxart(title: String) async throws -> Data? {
         var components = URLComponents(string: "https://api.thegamesdb.net/v1/Games/ByGameName")!
         components.queryItems = [
@@ -44,7 +77,11 @@ enum BoxartFetcher {
             URLQueryItem(name: "include", value: "boxart"),
         ]
 
-        let (data, _) = try await URLSession.shared.data(from: components.url!)
+        let (data, urlResponse) = try await URLSession.shared.data(from: components.url!)
+        if let http = urlResponse as? HTTPURLResponse, http.statusCode != 200 {
+            let body = String(data: data.prefix(200), encoding: .utf8)
+            throw FetchError.http(http.statusCode, body)
+        }
         let response = try JSONDecoder().decode(SearchResponse.self, from: data)
 
         // Первый результат поиска; у него — фронтальная сторона коробки

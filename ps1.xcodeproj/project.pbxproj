@@ -278,7 +278,10 @@
 				DEVELOPMENT_TEAM = 87XM268947;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/Vendor/pcsx_rearmed/deps/libretro-common/include";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/pcsx_rearmed/deps/libretro-common/include",
+					"$(SRCROOT)/Vendor/libarchive/libarchive",
+				);
 				INFOPLIST_FILE = ps1/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = NGR;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
@@ -294,9 +297,19 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/Vendor/pcsx_rearmed/lib";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/pcsx_rearmed/lib",
+					"$(SRCROOT)/Vendor/libarchive/lib",
+				);
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = "-lpcsx_rearmed_$(PLATFORM_NAME)";
+				OTHER_LDFLAGS = (
+					"-lpcsx_rearmed_$(PLATFORM_NAME)",
+					"-larchive_$(PLATFORM_NAME)",
+					"-llzma",
+					"-lbz2",
+					"-liconv",
+					"-lz",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.01lab.nagori;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -324,7 +337,10 @@
 				DEVELOPMENT_TEAM = 87XM268947;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/Vendor/pcsx_rearmed/deps/libretro-common/include";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/pcsx_rearmed/deps/libretro-common/include",
+					"$(SRCROOT)/Vendor/libarchive/libarchive",
+				);
 				INFOPLIST_FILE = ps1/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = NGR;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
@@ -340,9 +356,19 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/Vendor/pcsx_rearmed/lib";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/Vendor/pcsx_rearmed/lib",
+					"$(SRCROOT)/Vendor/libarchive/lib",
+				);
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = "-lpcsx_rearmed_$(PLATFORM_NAME)";
+				OTHER_LDFLAGS = (
+					"-lpcsx_rearmed_$(PLATFORM_NAME)",
+					"-larchive_$(PLATFORM_NAME)",
+					"-llzma",
+					"-lbz2",
+					"-liconv",
+					"-lz",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.01lab.nagori;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

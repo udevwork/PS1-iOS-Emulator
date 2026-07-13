@@ -1,12 +1,15 @@
 import SwiftUI
 import UIKit
 
-/// Хаптика тач-кнопок с учётом настройки «Вибрация тач-кнопок»
+/// Хаптика тач-кнопок; общий выключатель «Haptic Feedback» — в UIHaptics.
+/// Генератор переиспользуется и держится готовым — отклик сильнее и мгновенный.
 enum TouchHaptics {
+    private static let generator = UIImpactFeedbackGenerator(style: .medium)
+
     static func tap(intensity: CGFloat) {
-        let enabled = (UserDefaults.standard.object(forKey: "touchHaptics") as? Bool) ?? true
-        guard enabled else { return }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: intensity)
+        guard UIHaptics.enabled else { return }
+        generator.impactOccurred(intensity: intensity)
+        generator.prepare()
     }
 }
 

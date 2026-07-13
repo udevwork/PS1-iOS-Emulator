@@ -7,10 +7,12 @@ zero mandatory configuration.
 - Console-style game library: horizontal carousel with covers taken from your last session
 - Full gamepad support (DualShock 4, DualSense, Xbox, MFi) with menu navigation and key repeat
 - Raw-multitouch on-screen controls with haptics
-- ×2 enhanced resolution, aspect stretch, smoothing — five settings total, on purpose
+- ×2 enhanced resolution, aspect stretch, smoothing — four settings total, on purpose
 - Fast-forward ×2 on the right trigger
-- Memory card saves persisted automatically; manual save states
-- Imports .chd, .cue/.bin, .pbp, .img, .iso via Files, share sheet, or "Open in ps1"
+- Separate autosave (instant resume) and manual save states, with slot screenshots
+- Custom console-style pause and launch menus, gamepad-driven
+- Imports .chd, .cue/.bin, .pbp, .img, .iso — or a whole .zip / .7z / .rar archive —
+  via Files, share sheet, or "Open in ps1"
 
 ## Building
 
@@ -34,7 +36,32 @@ Requirements: Xcode 26+, iOS device (arm64).
    mv pcsx_rearmed_libretro_ios.dylib lib/libpcsx_rearmed_iphonesimulator.a
    ```
 
-2. Open `ps1.xcodeproj`, set your development team, build and run on a device.
+2. Build libarchive (static, for archive imports — .zip/.7z/.rar):
+
+   ```sh
+   cd Vendor
+   curl -L -o libarchive.tar.gz \
+     https://github.com/libarchive/libarchive/releases/download/v3.8.1/libarchive-3.8.1.tar.gz
+   tar xzf libarchive.tar.gz && mv libarchive-3.8.1 libarchive && rm libarchive.tar.gz
+   cd libarchive
+   SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+   ./configure --host=aarch64-apple-darwin \
+     CC="$(xcrun -sdk iphoneos -f clang)" \
+     CPPFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=17.0" \
+     CFLAGS="-arch arm64 -isysroot $SDK -miphoneos-version-min=17.0 -O2" \
+     LDFLAGS="-arch arm64 -isysroot $SDK" \
+     --disable-shared --enable-static \
+     --disable-bsdtar --disable-bsdcat --disable-bsdcpio --disable-bsdunzip \
+     --without-openssl --without-xml2 --without-expat \
+     --without-zstd --without-lz4 --disable-acl --disable-xattr
+   make libarchive.la -j8
+   mkdir -p lib && cp .libs/libarchive.a lib/libarchive_iphoneos.a
+   ```
+
+   The `-isysroot` in `CPPFLAGS` is required — without it `configure` silently
+   misdetects every type. lzma/bz2/z/iconv are linked from the iOS SDK.
+
+3. Open `ps1.xcodeproj`, set your development team, build and run on a device.
 
 BIOS is optional: the core falls back to HLE BIOS. For maximum compatibility place
 your own dump (e.g. `scph1001.bin`) into the app's `Documents/System` folder via Files.
@@ -61,6 +88,9 @@ its authors: notaz, the PCSX team, and libretro contributors.
 GPL-2.0. This application links the GPLv2-licensed PCSX-ReARMed core statically,
 so the entire application is distributed under the GNU General Public License v2.
 See [LICENSE](LICENSE). Original license notices in `Vendor/pcsx_rearmed` are preserved.
+
+Archive imports use [libarchive](https://www.libarchive.org) (2-clause BSD,
+GPL-compatible), built from the stock v3.8.1 release as described above.
 
 PlayStation is a trademark of Sony Interactive Entertainment Inc. This project is not
 affiliated with or endorsed by Sony.

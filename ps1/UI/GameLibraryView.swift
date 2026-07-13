@@ -7,10 +7,25 @@ struct Game: Identifiable, Hashable {
     var id: String { url.lastPathComponent }
     var title: String { url.deletingPathExtension().lastPathComponent }
 
+    /// Ручной сейв — слот «на всякий случай» перед сложным местом
     var saveStateURL: URL {
         EmulatorCore.saveDirectory
             .appendingPathComponent(url.lastPathComponent)
             .appendingPathExtension("state")
+    }
+
+    /// Автосейв — точка продолжения, пишется при выходе/сворачивании
+    var autoStateURL: URL {
+        EmulatorCore.saveDirectory
+            .appendingPathComponent(url.lastPathComponent)
+            .appendingPathExtension("auto.state")
+    }
+
+    /// Скриншот ручного сейва (пишется вместе с ним; у автосейва это coverURL)
+    var saveImageURL: URL {
+        EmulatorCore.saveDirectory
+            .appendingPathComponent(url.lastPathComponent)
+            .appendingPathExtension("state.png")
     }
 
     /// Скриншот из авто-сейва (пишет EmulatorCore.saveCover)
@@ -37,17 +52,27 @@ struct Game: Identifiable, Hashable {
 
     /// Есть точка продолжения — на карточке показываем «Продолжить»
     var hasResumePoint: Bool {
-        let autoState = EmulatorCore.saveDirectory
-            .appendingPathComponent(url.lastPathComponent)
-            .appendingPathExtension("auto.state")
-        return FileManager.default.fileExists(atPath: autoState.path)
+        FileManager.default.fileExists(atPath: autoStateURL.path)
     }
 
     /// Имя для поиска в базе обложек: без региональных тегов «(USA) [!]» и т.п.
+    /// Хвостовой артикль ромсетов «Mummy, The» разворачивается в «The Mummy».
     var searchTitle: String {
-        title
+        var name = title
             .replacingOccurrences(of: #"[(\[][^)\]]*[)\]]"#, with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces)
+        if let match = name.firstMatch(of: /^(.+?),\s*(The|A|An)$/.ignoresCase()) {
+            name = "\(match.2) \(match.1)"
+        } else if let match = name.firstMatch(of: /^(.+?)\s+(The)$/.ignoresCase()) {
+            // Без запятой тоже встречается: «Mummy The»
+            name = "\(match.2) \(match.1)"
+        }
+        return name
+    }
+
+    /// Имя для показа в UI — тоже без тегов; если после чистки пусто, как есть
+    var displayTitle: String {
+        searchTitle.isEmpty ? title : searchTitle
     }
 }
 
@@ -68,11 +93,25 @@ struct GameLibraryView: View {
     @State private var page: Page = .library
     @State private var settingsIndex = 0
 
+    // Меню запуска: Play / Continue / Load — тот же оверлей, что пауза-меню.
+    // Игра и пункты живут дольше `visible` — ради анимации ухода
+    @State private var launchMenuVisible = false
+    @State private var launchMenuGame: Game?
+    @State private var launchMenuIndex = 0
+    @State private var launchEntries: [ConsoleMenuEntry] = []
+    /// Стейт, который загрузит выбранный пункт меню при старте игры
+    @State private var launchStateURL: URL?
+
+    /// Имя архива, который сейчас распаковывается (nil — распаковки нет)
+    @State private var extractingArchive: String?
+
+    /// Причина неудачи принудительной загрузки бокс-арта — показываем алертом
+    @State private var boxartError: String?
+
     @AppStorage("renderEnhanced") private var renderEnhanced = true
     @AppStorage("stretchFill") private var stretchFill = false
     @AppStorage("videoSmoothing") private var videoSmoothing = true
     @AppStorage("touchHaptics") private var touchHaptics = true
-    @AppStorage("autoResume") private var autoResume = true
 
     static let gamesDirectory: URL = {
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -88,9 +127,14 @@ struct GameLibraryView: View {
     private static let discRegex = /^(.+?)[\s._-]*[(\[]?(?:disc|disk|cd)[\s._-]*(\d+)[)\]]?/
         .ignoresCase()
 
+    /// Обложки, декодированные заранее в фоне. Ключ — game.id.
+    /// В body никакого диска и декода: карточки получают готовые UIImage
+    /// со стабильными инстансами, иначе каждый чих анимации = PNG-декод
+    @State private var covers: [String: UIImage] = [:]
+
     private var selectedCover: UIImage? {
         guard games.indices.contains(selectedIndex) else { return nil }
-        return UIImage(contentsOfFile: games[selectedIndex].displayCoverPath)
+        return covers[games[selectedIndex].id]
     }
 
     var body: some View {
@@ -111,6 +155,44 @@ struct GameLibraryView: View {
         // Фон именно через .background: он получает размер контента и сам
         // на layout не влияет — картинка в ZStack раздувала весь экран
         .background(background)
+        .overlay(
+            ConsoleMenuOverlay(
+                visible: launchMenuVisible,
+                title: launchMenuGame?.displayTitle ?? "",
+                entries: launchEntries,
+                focusIndex: launchMenuIndex,
+                showHints: gamepadManager.isControllerConnected,
+                onActivate: { index in
+                    launchMenuIndex = index
+                    launchEntries[index].activate()
+                },
+                onClose: { closeLaunchMenu() }
+            )
+            .allowsHitTesting(launchMenuVisible)
+        )
+        .overlay {
+            if let extractingArchive {
+                ZStack {
+                    Color.black.opacity(0.6).ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .controlSize(.large)
+                            .tint(.white)
+                        Text("Extracting \(extractingArchive)…")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .lineLimit(1)
+                    }
+                    .padding(30)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color(red: 0.11, green: 0.11, blue: 0.16))
+                    )
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: extractingArchive != nil)
         .preferredColorScheme(.dark)
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
@@ -125,7 +207,7 @@ struct GameLibraryView: View {
             GamepadManager.shared.mode = .menu
             reloadGames()
         }) { game in
-            GameScreenView(game: game)
+            GameScreenView(game: game, initialState: launchStateURL)
         }
         .fullScreenCover(isPresented: $showPaywall) {
             PaywallView()
@@ -137,6 +219,14 @@ struct GameLibraryView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(importError ?? "")
+        }
+        .alert("Box Art Failed", isPresented: .init(
+            get: { boxartError != nil },
+            set: { if !$0 { boxartError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(boxartError ?? "")
         }
         .onAppear {
             installBundledGameIfNeeded()
@@ -188,17 +278,16 @@ struct GameLibraryView: View {
     // MARK: - Бюджет высоты
     //
     // Альбомная ориентация, всё считаем явно от высоты safe area:
-    //   header (64) + карусель (остаток) + инфо-футер (86) = высота экрана.
+    //   header (64) + карусель (весь остаток) = высота экрана.
     // Карточка выводится из остатка с запасом 1.16 — под увеличение
     // выбранной (×1.13) и тень, чтобы ничего не выталкивало соседей.
 
     private static let headerHeight: CGFloat = 64
-    private static let infoHeight: CGFloat = 86
     private static let cardSpacing: CGFloat = 24
 
     private static func cardSize(for geo: GeometryProxy) -> CGFloat {
-        let carouselArea = geo.size.height - headerHeight - infoHeight
-        return min((carouselArea - 20) / 1.16, 240)
+        let carouselArea = geo.size.height - headerHeight
+        return min((carouselArea - 24) / 1.16, 300)
     }
 
     /// Левый отступ контента от safe area — одинаковый для всех страниц.
@@ -221,11 +310,6 @@ struct GameLibraryView: View {
             } else {
                 carousel(cardSize: cardSize, spacing: Self.cardSpacing, anchorX: anchorX)
                     .frame(maxHeight: .infinity)
-
-                selectedGameInfo
-                    .padding(.horizontal, anchorX)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: Self.infoHeight, alignment: .top)
             }
         }
         .frame(width: pageSize.width, height: pageSize.height)
@@ -241,10 +325,8 @@ struct GameLibraryView: View {
              "Stretch the picture, sacrificing the 4:3 aspect", $stretchFill, true),
             ("wand.and.stars", "Picture Smoothing",
              "Soft filtering instead of raw pixels", $videoSmoothing, true),
-            ("iphone.radiowaves.left.and.right", "Touch Button Haptics",
-             "Vibration feedback for on-screen controls", $touchHaptics, false),
-            ("memories", "Resume Where You Left Off",
-             "Jump back in at the exact same spot", $autoResume, false),
+            ("iphone.radiowaves.left.and.right", "Haptic Feedback",
+             "Vibration for controls, menus and buttons", $touchHaptics, false),
         ]
     }
 
@@ -296,7 +378,7 @@ struct GameLibraryView: View {
                                     showPaywall = true
                                 } else {
                                     row.binding.wrappedValue.toggle()
-                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.7)
+                                    UIHaptics.action()
                                 }
                             }
                         }
@@ -330,13 +412,13 @@ struct GameLibraryView: View {
 
     private var header: some View {
         HStack(spacing: 24) {
-            Text("PS1")
+            // Имя выбранной игры; пустая библиотека — просто имя приложения
+            Text(games.indices.contains(selectedIndex) ? games[selectedIndex].displayTitle : "PS1")
                 .font(.system(size: 22, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white.opacity(0.9))
-            Text("\(games.count)")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.35))
-                .padding(.top, 4)
+                .lineLimit(1)
+                .contentTransition(.opacity)
+                .animation(.easeOut(duration: 0.15), value: selectedIndex)
 
             Spacer()
 
@@ -377,7 +459,11 @@ struct GameLibraryView: View {
             .overlay(alignment: .leading) {
                 HStack(spacing: spacing) {
                     ForEach(Array(games.enumerated()), id: \.element.id) { index, game in
-                        GameCardView(game: game, isSelected: index == selectedIndex, size: cardSize)
+                        GameCardView(
+                            game: game,
+                            cover: covers[game.id],
+                            isSelected: index == selectedIndex,
+                            size: cardSize)
                             .onTapGesture {
                                 if index == selectedIndex {
                                     launchSelected()
@@ -386,6 +472,11 @@ struct GameLibraryView: View {
                                 }
                             }
                             .contextMenu {
+                                Button {
+                                    forceFetchBoxart(game)
+                                } label: {
+                                    Label("Fetch Box Art", systemImage: "photo")
+                                }
                                 Button(role: .destructive) {
                                     deleteGame(game)
                                 } label: {
@@ -419,35 +510,6 @@ struct GameLibraryView: View {
         )
     }
 
-    private var selectedGameInfo: some View {
-        Group {
-            if games.indices.contains(selectedIndex) {
-                let game = games[selectedIndex]
-                VStack(alignment: .leading, spacing: 5) {
-                    Spacer().frame(height: 16)
-                    Text(game.title)
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                    HStack(spacing: 8) {
-                        Text(game.url.pathExtension.uppercased())
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.45))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(.white.opacity(0.1)))
-                        if game.hasResumePoint {
-                            Text("Continue")
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.45))
-                        }
-                    }
-                }
-            }
-        }
-        .animation(.easeOut(duration: 0.2), value: selectedIndex)
-    }
-
     private func hint(symbol: String, circleColor: Color, text: String) -> some View {
         HStack(spacing: 7) {
             ZStack {
@@ -472,9 +534,10 @@ struct GameLibraryView: View {
             Text("No Games")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.9))
-            Text("Add a disc image — .chd, .cue + .bin, or .pbp")
+            Text("Add a disc image — .chd, .cue + .bin, or .pbp —\nor an entire **.zip / .7z / .rar** archive")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundStyle(.white.opacity(0.45))
+                .multilineTextAlignment(.center)
             Button {
                 showImporter = true
             } label: {
@@ -494,6 +557,11 @@ struct GameLibraryView: View {
     private func handleMenuEvent(_ event: GamepadManager.MenuEvent) {
         // Пока пейвол открыт, геймпад не должен листать библиотеку под ним
         guard !showPaywall else { return }
+        // Открытое меню запуска забирает ввод целиком
+        if launchMenuVisible {
+            handleLaunchMenuEvent(event)
+            return
+        }
         switch (page, event) {
         case (.library, .left): select(selectedIndex - 1)
         case (.library, .right): select(selectedIndex + 1)
@@ -509,20 +577,25 @@ struct GameLibraryView: View {
                 settingsIndex -= 1
             }
             UISound.play(.click)
-            UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
+            UIHaptics.move()
         case (.settings, .down):
             guard settingsIndex < settingsToggles.count - 1 else { break }
             settingsIndex += 1
             UISound.play(.click)
-            UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
+            UIHaptics.move()
         case (.settings, .primary):
             if isRowLocked(settingsToggles[settingsIndex].pro) {
                 showPaywall = true
             } else {
                 settingsToggles[settingsIndex].binding.wrappedValue.toggle()
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.7)
+                UIHaptics.action()
             }
-        case (.settings, .left), (.settings, .right), (.settings, .secondary):
+        case (.settings, .cancel):
+            page = .library
+            UISound.play(.click)
+            UIHaptics.move()
+        case (.settings, .left), (.settings, .right), (.settings, .secondary),
+             (.library, .cancel):
             break
         }
     }
@@ -531,7 +604,7 @@ struct GameLibraryView: View {
         settingsIndex = 0
         page = .settings
         UISound.play(.click)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
+        UIHaptics.move()
     }
 
     private func select(_ index: Int) {
@@ -539,13 +612,92 @@ struct GameLibraryView: View {
         guard clamped != selectedIndex else { return }
         selectedIndex = clamped
         UISound.play(.click)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
+        UIHaptics.move()
     }
 
     private func launchSelected() {
         guard games.indices.contains(selectedIndex) else { return }
+        openLaunchMenu(games[selectedIndex])
+    }
+
+    // MARK: - Меню запуска
+
+    private func openLaunchMenu(_ game: Game) {
+        launchMenuGame = game
+        launchEntries = buildLaunchEntries(game)
+        // Фокус по умолчанию — «Continue», если есть точка продолжения
+        launchMenuIndex = game.hasResumePoint ? 1 : 0
+        launchMenuVisible = true
+        UISound.play(.click)
+        UIHaptics.action()
+    }
+
+    private func closeLaunchMenu() {
+        guard launchMenuVisible else { return }
+        launchMenuVisible = false
+        UISound.play(.click)
+    }
+
+    private func buildLaunchEntries(_ game: Game) -> [ConsoleMenuEntry] {
+        let manualDate = ConsoleMenuEntry.saveDate(game.saveStateURL)
+        let autoDate = ConsoleMenuEntry.saveDate(game.autoStateURL)
+        // Превью: у Play — арт с карточки, у слотов — их скриншоты
+        let artImage = UIImage(contentsOfFile: game.displayCoverPath)
+        let autoImage = UIImage(contentsOfFile: game.coverURL.path)
+        let manualImage = UIImage(contentsOfFile: game.saveImageURL.path)
+
+        return [
+            ConsoleMenuEntry(
+                icon: "play.fill", title: "Play",
+                subtitle: "Fresh start", enabled: true, image: artImage
+            ) {
+                launch(game, state: nil)
+            },
+            ConsoleMenuEntry(
+                icon: "memories", title: "Continue",
+                subtitle: autoDate.map { "Where you left off · \($0)" } ?? "No autosave yet",
+                enabled: autoDate != nil, image: autoImage
+            ) {
+                launch(game, state: game.autoStateURL)
+            },
+            ConsoleMenuEntry(
+                icon: "square.and.arrow.up", title: "Load",
+                subtitle: manualDate ?? "No manual save yet",
+                enabled: manualDate != nil, image: manualImage
+            ) {
+                launch(game, state: game.saveStateURL)
+            },
+        ]
+    }
+
+    /// Меню закрывается и одновременно стартует игра с выбранным стейтом
+    private func launch(_ game: Game, state: URL?) {
         UISound.play(.confirm)
-        selectedGame = games[selectedIndex]
+        launchStateURL = state
+        launchMenuVisible = false
+        selectedGame = game
+    }
+
+    private func handleLaunchMenuEvent(_ event: GamepadManager.MenuEvent) {
+        switch event {
+        case .up: moveLaunchFocus(-1)
+        case .down: moveLaunchFocus(1)
+        case .primary:
+            guard launchEntries.indices.contains(launchMenuIndex) else { return }
+            launchEntries[launchMenuIndex].activate()
+        case .cancel:
+            closeLaunchMenu()
+        case .left, .right, .secondary:
+            break
+        }
+    }
+
+    private func moveLaunchFocus(_ delta: Int) {
+        let target = max(0, min(launchEntries.count - 1, launchMenuIndex + delta))
+        guard target != launchMenuIndex else { return }
+        launchMenuIndex = target
+        UISound.play(.click)
+        UIHaptics.move()
     }
 
     // MARK: - Импорт и файлы
@@ -579,6 +731,34 @@ struct GameLibraryView: View {
             .map { Game(url: $0) }
 
         selectedIndex = max(0, min(games.count - 1, selectedIndex))
+        reloadCovers()
+    }
+
+    /// Читает и декодирует обложки в фоне, с прижатием до размера карточки.
+    private func reloadCovers() {
+        // id и пути снимаем на главном акторе — в фоне только диск и декод
+        let items = games.map { (id: $0.id, path: $0.displayCoverPath) }
+        Task.detached(priority: .userInitiated) {
+            var result: [String: UIImage] = [:]
+            for item in items {
+                guard let raw = UIImage(contentsOfFile: item.path) else { continue }
+                // Больше ~640px карточке не нужно — большие бокс-арты прижимаем
+                let maxSide: CGFloat = 640
+                let largest = max(raw.size.width, raw.size.height) * raw.scale
+                if largest > maxSide {
+                    let k = maxSide / largest
+                    let target = CGSize(
+                        width: raw.size.width * raw.scale * k,
+                        height: raw.size.height * raw.scale * k)
+                    result[item.id] = await raw.byPreparingThumbnail(ofSize: target) ?? raw
+                } else {
+                    // Форсируем декод сейчас, а не при первой отрисовке
+                    result[item.id] = await raw.byPreparingForDisplay() ?? raw
+                }
+            }
+            let decoded = result
+            await MainActor.run { covers = decoded }
+        }
     }
 
     /// Находит группы «(Disc 1) / (Disc 2)…» и пишет для них .m3u.
@@ -663,6 +843,23 @@ struct GameLibraryView: View {
         }
     }
 
+    /// Принудительная перезагрузка бокс-арта из контекстного меню карточки.
+    /// Неудача — алертом с причиной (HTTP-код, «не найдено», сеть).
+    private func forceFetchBoxart(_ game: Game) {
+        guard FeatureGate.isPro else {
+            showPaywall = true
+            return
+        }
+        Task {
+            do {
+                try await BoxartFetcher.fetchNow(for: game)
+                reloadGames() // перечитает и кэш обложек
+            } catch {
+                boxartError = error.localizedDescription
+            }
+        }
+    }
+
     /// Тихо докачивает недостающие бокс-арты и обновляет карусель
     private func fetchBoxarts() {
         let snapshot = games
@@ -674,8 +871,14 @@ struct GameLibraryView: View {
     }
 
     /// Копирует образ в песочницу приложения (Documents/Games).
+    /// Архивы (.zip/.7z/.rar) распаковываются в фоне.
     /// Оригинал после этого приложению не нужен.
     private func importFile(from url: URL) {
+        if ArchiveImporter.isArchive(url) {
+            importArchive(url)
+            return
+        }
+
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
 
@@ -685,8 +888,37 @@ struct GameLibraryView: View {
                 try FileManager.default.removeItem(at: destination)
             }
             try FileManager.default.copyItem(at: url, to: destination)
+            // Свежий импорт — прошлые неудачи поиска арта не считаются
+            BoxartFetcher.forgetAttempts([url.lastPathComponent])
         } catch {
             importError = error.localizedDescription
+        }
+    }
+
+    /// Достаёт образы из архива в Games. Распаковка в фоне, UI показывает
+    /// оверлей «Extracting…» и по завершении перечитывает библиотеку.
+    private func importArchive(_ url: URL) {
+        extractingArchive = url.lastPathComponent
+        let destination = Self.gamesDirectory
+        Task.detached(priority: .userInitiated) {
+            let accessing = url.startAccessingSecurityScopedResource()
+            defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let extracted = try ArchiveImporter.extract(url, to: destination)
+                await MainActor.run {
+                    extractingArchive = nil
+                    // Свежий импорт — прошлые неудачи поиска арта не считаются
+                    BoxartFetcher.forgetAttempts(extracted)
+                    reloadGames()
+                    fetchBoxarts()
+                }
+            } catch {
+                let message = error.localizedDescription
+                await MainActor.run {
+                    extractingArchive = nil
+                    importError = message
+                }
+            }
         }
     }
 
@@ -714,6 +946,9 @@ struct GameLibraryView: View {
         try? FileManager.default.removeItem(at: game.coverURL)
         try? FileManager.default.removeItem(at: game.boxartURL)
         try? FileManager.default.removeItem(at: game.saveStateURL)
+        try? FileManager.default.removeItem(at: game.autoStateURL)
+        try? FileManager.default.removeItem(at: game.saveImageURL)
+        BoxartFetcher.forgetAttempts([game.id])
         reloadGames()
     }
 }
@@ -801,12 +1036,12 @@ private struct SettingRow: View {
 
 private struct GameCardView: View {
     let game: Game
+    /// Готовая декодированная обложка из кэша — body не трогает диск
+    let cover: UIImage?
     let isSelected: Bool
     let size: CGFloat
 
     var body: some View {
-        let cover = UIImage(contentsOfFile: game.displayCoverPath)
-
         ZStack {
             // Свечение: заблюренный дубль арта позади карточки.
             // Сначала обрезаем в форму карточки, потом блюрим — ореол
@@ -839,6 +1074,19 @@ private struct GameCardView: View {
                         isSelected ? .white.opacity(0.95) : .white.opacity(0.12),
                         lineWidth: isSelected ? 2.5 : 1)
             )
+            // Формат образа — в углу карточки, только у выбранной
+            .overlay(alignment: .bottomLeading) {
+                if isSelected {
+                    Text(game.url.pathExtension.uppercased())
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(.black.opacity(0.55)))
+                        .padding(9)
+                        .transition(.opacity)
+                }
+            }
             .shadow(color: .black.opacity(0.5), radius: 14, y: 8)
         }
         .scaleEffect(isSelected ? 1.13 : 0.92)
@@ -855,7 +1103,7 @@ private struct GameCardView: View {
                 Image(systemName: "opticaldisc.fill")
                     .font(.system(size: 40))
                     .foregroundStyle(.white.opacity(0.25))
-                Text(game.title)
+                Text(game.displayTitle)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(2)

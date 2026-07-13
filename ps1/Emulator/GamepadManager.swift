@@ -15,6 +15,7 @@ final class GamepadManager {
         case left, right, up, down
         case primary   // ✕ — выбрать/запустить/переключить
         case secondary // △ — добавить игру
+        case cancel    // ○ — назад/закрыть меню
     }
 
     private(set) var isControllerConnected = false
@@ -28,9 +29,13 @@ final class GamepadManager {
             isFastForwarding = false
             cancelAllRepeats()
             menuHeld.removeAll()
+            l3Held = false
         }
     }
     var menuHandler: ((MenuEvent) -> Void)?
+    /// Нажатие левого стика (L3) в игре — вызов пауза-меню
+    var pauseHandler: (() -> Void)?
+    private var l3Held = false
 
     // Для edge-детекции и автоповтора в режиме меню
     private var menuHeld: Set<String> = []
@@ -86,17 +91,27 @@ final class GamepadManager {
         input.set(.square, pressed: gamepad.buttonX.isPressed)
         input.set(.triangle, pressed: gamepad.buttonY.isPressed)
 
-        input.set(.up, pressed: gamepad.dpad.up.isPressed)
-        input.set(.down, pressed: gamepad.dpad.down.isPressed)
-        input.set(.left, pressed: gamepad.dpad.left.isPressed)
-        input.set(.right, pressed: gamepad.dpad.right.isPressed)
+        // Левый стик дублирует крестовину: многие PS1-игры цифровые
+        // и аналог не читают. Настоящий аналог при этом тоже передаётся
+        let stickX = gamepad.leftThumbstick.xAxis.value
+        let stickY = gamepad.leftThumbstick.yAxis.value
+        input.set(.up, pressed: gamepad.dpad.up.isPressed || stickY > 0.5)
+        input.set(.down, pressed: gamepad.dpad.down.isPressed || stickY < -0.5)
+        input.set(.left, pressed: gamepad.dpad.left.isPressed || stickX < -0.5)
+        input.set(.right, pressed: gamepad.dpad.right.isPressed || stickX > 0.5)
 
         input.set(.l1, pressed: gamepad.leftShoulder.isPressed)
         input.set(.r1, pressed: gamepad.rightShoulder.isPressed)
         input.set(.l2, pressed: gamepad.leftTrigger.isPressed)
         input.set(.r2, pressed: gamepad.rightTrigger.isPressed)
 
-        input.set(.l3, pressed: gamepad.leftThumbstickButton?.isPressed ?? false)
+        // L3 забираем под пауза-меню (PS1-игры его почти не использовали),
+        // в ядро он не передаётся; R3 остаётся игре
+        let l3 = gamepad.leftThumbstickButton?.isPressed ?? false
+        if l3 && !l3Held {
+            pauseHandler?()
+        }
+        l3Held = l3
         input.set(.r3, pressed: gamepad.rightThumbstickButton?.isPressed ?? false)
 
         input.set(.select, pressed: gamepad.buttonOptions?.isPressed ?? false)
@@ -130,6 +145,7 @@ final class GamepadManager {
         emitOnEdge("down", pressed: gamepad.dpad.down.isPressed || stickY < -0.5, event: .down, repeats: true)
         emitOnEdge("primary", pressed: gamepad.buttonA.isPressed, event: .primary)
         emitOnEdge("secondary", pressed: gamepad.buttonY.isPressed, event: .secondary)
+        emitOnEdge("cancel", pressed: gamepad.buttonB.isPressed, event: .cancel)
     }
 
     private func emitOnEdge(_ key: String, pressed: Bool, event: MenuEvent, repeats: Bool = false) {

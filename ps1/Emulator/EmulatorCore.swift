@@ -21,7 +21,8 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
 
     private var gamePath: String?
     private var fps: Double = 60.0
-    private var resumeFromAutoState = true
+    /// Стейт, который грузим сразу после старта (выбран в меню запуска)
+    private var initialStateURL: URL?
     private var _fastForward = false
 
     /// Ускорение ×2 (курок на геймпаде). Читается тактовщиком каждый кадр.
@@ -77,16 +78,14 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
 
     // MARK: - Управление
 
-    func start(gamePath: String, resume: Bool = true) {
+    func start(gamePath: String, initialState: URL? = nil) {
         stateLock.lock(); defer { stateLock.unlock() }
         guard state == .stopped else { return }
         self.gamePath = gamePath
+        self.initialStateURL = initialState
         // Pro-статус фиксируется на всю сессию: истёкший посреди игры триал
         // не должен переключать качество на лету
         FeatureGate.beginSession()
-        // Настройка «Продолжать с места выхода» может отключить автовозобновление
-        let autoResumeEnabled = (UserDefaults.standard.object(forKey: "autoResume") as? Bool) ?? true
-        self.resumeFromAutoState = resume && autoResumeEnabled
         workLock.lock()
         acceptingWork = true
         workLock.unlock()
@@ -155,10 +154,10 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
 
         loadSaveRAM()
 
-        // Продолжаем с того места, где закончили в прошлый раз
-        if resumeFromAutoState, let autoURL = autoStateURL,
-           FileManager.default.fileExists(atPath: autoURL.path) {
-            _ = unserialize(from: autoURL)
+        // Меню запуска выбрало точку старта: автосейв или ручной сейв
+        if let initialStateURL,
+           FileManager.default.fileExists(atPath: initialStateURL.path) {
+            _ = unserialize(from: initialStateURL)
         }
 
         audio.start(sampleRate: avInfo.timing.sample_rate)
@@ -332,8 +331,14 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
 
     /// Скриншот текущего кадра как обложка игры в библиотеке.
     private func saveCover() {
-        guard let coverURL, let cgImage = videoBuffer.makeCGImage() else { return }
-        try? UIImage(cgImage: cgImage).pngData()?.write(to: coverURL)
+        guard let coverURL else { return }
+        saveScreenshot(to: coverURL)
+    }
+
+    /// Скриншот текущего кадра — превью слота сохранения.
+    func saveScreenshot(to url: URL) {
+        guard let cgImage = videoBuffer.makeCGImage() else { return }
+        try? UIImage(cgImage: cgImage).pngData()?.write(to: url)
     }
 
     // Только с эмуляционного потока
