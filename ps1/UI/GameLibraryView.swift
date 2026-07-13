@@ -116,7 +116,7 @@ struct GameLibraryView: View {
     @State private var boxartError: String?
 
     @AppStorage("renderEnhanced") private var renderEnhanced = true
-    @AppStorage("stretchFill") private var stretchFill = false
+    @AppStorage("stretchFill") private var stretchFill = true
     @AppStorage("videoSmoothing") private var videoSmoothing = true
     @AppStorage("touchHaptics") private var touchHaptics = true
 
@@ -360,7 +360,7 @@ struct GameLibraryView: View {
         UIHaptics.move()
     }
 
-    /// Заперта ли Pro-строка: подписки нет и пробные 10 часов сожжены
+    /// Заперта ли Pro-строка: подписки нет и пробные 5 часов сожжены
     private func isRowLocked(_ pro: Bool) -> Bool {
         pro && !subscriptionManager.isSubscribed && FeatureGate.trialRemaining <= 0
     }

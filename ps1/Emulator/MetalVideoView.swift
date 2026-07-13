@@ -88,7 +88,7 @@ struct MetalVideoView: UIViewRepresentable {
             // Настройка «На весь экран»: либо честные 4:3 (PS1 выводит
             // с неквадратными пикселями), либо натянуть на весь экран (Pro)
             let stretchFill = FeatureGate.sessionIsPro
-                && (UserDefaults.standard.object(forKey: "stretchFill") as? Bool) ?? false
+                && (UserDefaults.standard.object(forKey: "stretchFill") as? Bool) ?? true
             var scale = SIMD2<Float>(1, 1)
             if !stretchFill {
                 let targetAspect: Float = 4.0 / 3.0
