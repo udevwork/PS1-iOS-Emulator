@@ -21,6 +21,10 @@ struct GameScreenView: View {
     // Короткое подтверждение «Game Saved» поверх игры
     @State private var toast: Toast?
 
+    // Читы игры и экран их редактирования
+    @State private var cheats: [Cheat] = []
+    @State private var showCheats = false
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -53,6 +57,7 @@ struct GameScreenView: View {
             .allowsHitTesting(menuVisible)
 
             toastView
+            ControllerToastHost()
         }
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
@@ -62,8 +67,15 @@ struct GameScreenView: View {
         .onAppear {
             GamepadManager.shared.mode = .game
             GamepadManager.shared.pauseHandler = { openMenu() }
-            EmulatorCore.shared.start(gamePath: game.url.path, initialState: initialState)
+            cheats = CheatStore.load(for: game)
+            EmulatorCore.shared.start(gamePath: game.url.path, initialState: initialState, cheats: cheats)
             UIApplication.shared.isIdleTimerDisabled = true
+        }
+        .sheet(isPresented: $showCheats, onDismiss: {
+            // Обновляем счётчик активных читов в подписи пункта меню
+            menuEntries = buildEntries()
+        }) {
+            CheatsView(game: game, cheats: $cheats)
         }
         .onDisappear {
             EmulatorCore.shared.stop()
@@ -188,7 +200,8 @@ struct GameScreenView: View {
     }
 
     private func handleMenuEvent(_ event: GamepadManager.MenuEvent) {
-        guard menuVisible else { return }
+        // Пока открыт экран читов — ввод его, а не меню под ним
+        guard menuVisible, !showCheats else { return }
         switch event {
         case .up: moveFocus(-1)
         case .down: moveFocus(1)
@@ -222,50 +235,61 @@ struct GameScreenView: View {
 
         var entries: [ConsoleMenuEntry] = [
             ConsoleMenuEntry(
-                icon: "play.fill", title: "Continue",
+                icon: "play.fill", title: String(localized: "Continue"),
                 subtitle: nil, enabled: true
             ) {
                 UISound.play(.click)
                 closeMenu()
             },
             ConsoleMenuEntry(
-                icon: "square.and.arrow.down", title: "Save",
-                subtitle: manualDate.map { "Overwrites save · \($0)" } ?? "For the tough spots",
+                icon: "square.and.arrow.down", title: String(localized: "Save"),
+                subtitle: manualDate.map { String(localized: "Overwrites save · \($0)") } ?? String(localized: "For the tough spots"),
                 enabled: true
             ) {
                 UISound.play(.confirm)
                 let ok = EmulatorCore.shared.saveState(to: game.saveStateURL)
                 if ok { EmulatorCore.shared.saveScreenshot(to: game.saveImageURL) }
                 closeMenu()
-                toast = Toast(text: ok ? "Game Saved" : "Save Failed")
+                toast = Toast(text: ok ? String(localized: "Game Saved") : String(localized: "Save Failed"))
             },
             ConsoleMenuEntry(
-                icon: "square.and.arrow.up", title: "Load",
-                subtitle: manualDate ?? "No manual save yet",
+                icon: "square.and.arrow.up", title: String(localized: "Load"),
+                subtitle: manualDate ?? String(localized: "No manual save yet"),
                 enabled: manualDate != nil, image: manualImage
             ) {
                 UISound.play(.confirm)
                 let ok = EmulatorCore.shared.loadState(from: game.saveStateURL)
                 closeMenu()
-                toast = Toast(text: ok ? "Save Loaded" : "Load Failed")
+                toast = Toast(text: ok ? String(localized: "Save Loaded") : String(localized: "Load Failed"))
             },
             ConsoleMenuEntry(
-                icon: "clock.arrow.circlepath", title: "Load Autosave",
-                subtitle: autoDate.map { "Where you left off · \($0)" } ?? "No autosave yet",
+                icon: "clock.arrow.circlepath", title: String(localized: "Load Autosave"),
+                subtitle: autoDate.map { String(localized: "Where you left off · \($0)") } ?? String(localized: "No autosave yet"),
                 enabled: autoDate != nil, image: autoImage
             ) {
                 UISound.play(.confirm)
                 let ok = EmulatorCore.shared.loadState(from: game.autoStateURL)
                 closeMenu()
-                toast = Toast(text: ok ? "Autosave Loaded" : "Load Failed")
+                toast = Toast(text: ok ? String(localized: "Autosave Loaded") : String(localized: "Load Failed"))
             },
         ]
+
+        let activeCheats = cheats.filter(\.enabled).count
+        entries.append(ConsoleMenuEntry(
+            icon: "wand.and.rays", title: String(localized: "Cheats"),
+            subtitle: cheats.isEmpty
+                ? String(localized: "Add GameShark codes")
+                : String(localized: "\(activeCheats) of \(cheats.count) active"),
+            enabled: true
+        ) {
+            showCheats = true
+        })
 
         let disks = EmulatorCore.shared.diskInfo()
         if disks.count > 1 {
             entries.append(ConsoleMenuEntry(
-                icon: "opticaldisc", title: "Change Disc",
-                subtitle: "Disc \(disks.current + 1) of \(disks.count)", enabled: true
+                icon: "opticaldisc", title: String(localized: "Change Disc"),
+                subtitle: String(localized: "Disc \(disks.current + 1) of \(disks.count)"), enabled: true
             ) {
                 UISound.play(.confirm)
                 EmulatorCore.shared.switchDisk(to: (disks.current + 1) % disks.count)
@@ -274,7 +298,7 @@ struct GameScreenView: View {
         }
 
         entries.append(ConsoleMenuEntry(
-            icon: "xmark.circle", title: "Quit Game",
+            icon: "xmark.circle", title: String(localized: "Quit Game"),
             subtitle: nil, enabled: true, isDestructive: true
         ) {
             UISound.play(.click)

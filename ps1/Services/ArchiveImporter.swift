@@ -19,9 +19,9 @@ nonisolated enum ArchiveImporter {
 
         var errorDescription: String? {
             switch self {
-            case .cantOpen(let detail): "Can't open archive: \(detail)"
-            case .noGameFiles: "No game files found in the archive"
-            case .extractFailed(let detail): "Extraction failed: \(detail)"
+            case .cantOpen(let detail): String(localized: "Can't open archive: \(detail)")
+            case .noGameFiles: String(localized: "No game files found in the archive")
+            case .extractFailed(let detail): String(localized: "Extraction failed: \(detail)")
             }
         }
     }

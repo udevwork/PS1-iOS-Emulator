@@ -146,7 +146,7 @@ struct ConsoleMenuOverlay: View {
         .frame(maxHeight: .infinity, alignment: .center)
     }
 
-    private func hint(symbol: String, circleColor: Color, text: String) -> some View {
+    private func hint(symbol: String, circleColor: Color, text: LocalizedStringKey) -> some View {
         HStack(spacing: 7) {
             ZStack {
                 Circle().fill(.white.opacity(0.1))

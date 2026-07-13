@@ -250,7 +250,7 @@ struct PaywallView: View {
                 if try await manager.restore() {
                     dismiss()
                 } else {
-                    errorMessage = "No active subscription found."
+                    errorMessage = String(localized: "No active subscription found.")
                 }
             } catch {
                 errorMessage = error.localizedDescription

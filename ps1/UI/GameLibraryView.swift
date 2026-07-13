@@ -28,6 +28,13 @@ struct Game: Identifiable, Hashable {
             .appendingPathExtension("state.png")
     }
 
+    /// GameShark-читы игры (JSON)
+    var cheatsURL: URL {
+        EmulatorCore.saveDirectory
+            .appendingPathComponent(url.lastPathComponent)
+            .appendingPathExtension("cheats.json")
+    }
+
     /// Скриншот из авто-сейва (пишет EmulatorCore.saveCover)
     var coverURL: URL {
         EmulatorCore.saveDirectory
@@ -113,6 +120,9 @@ struct GameLibraryView: View {
     @AppStorage("videoSmoothing") private var videoSmoothing = true
     @AppStorage("touchHaptics") private var touchHaptics = true
 
+    /// Текущая иконка приложения; источник истины — система (читаем в onAppear)
+    @State private var appIcon: AppIcon = .standard
+
     static let gamesDirectory: URL = {
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Games", isDirectory: true)
@@ -170,6 +180,7 @@ struct GameLibraryView: View {
             )
             .allowsHitTesting(launchMenuVisible)
         )
+        .overlay(ControllerToastHost())
         .overlay {
             if let extractingArchive {
                 ZStack {
@@ -232,6 +243,7 @@ struct GameLibraryView: View {
             installBundledGameIfNeeded()
             reloadGames()
             fetchBoxarts()
+            appIcon = IconManager.current
             GamepadManager.shared.mode = .menu
             GamepadManager.shared.menuHandler = { event in
                 handleMenuEvent(event)
@@ -317,22 +329,73 @@ struct GameLibraryView: View {
 
     // MARK: - Страница «Настройки»
 
-    private var settingsToggles: [(icon: String, title: String, subtitle: String, binding: Binding<Bool>, pro: Bool)] {
+    private var settingsItems: [SettingItem] {
         [
-            ("sparkles.tv", "Enhanced Resolution",
-             "3D games render at double internal resolution (×2)", $renderEnhanced, true),
-            ("arrow.up.left.and.arrow.down.right", "Full Screen",
-             "Stretch the picture, sacrificing the 4:3 aspect", $stretchFill, true),
-            ("wand.and.stars", "Picture Smoothing",
-             "Soft filtering instead of raw pixels", $videoSmoothing, true),
-            ("iphone.radiowaves.left.and.right", "Haptic Feedback",
-             "Vibration for controls, menus and buttons", $touchHaptics, false),
+            .toggle(icon: "sparkles.tv", title: String(localized: "Enhanced Resolution"),
+                    subtitle: String(localized: "3D games render at double internal resolution (×2)"),
+                    binding: $renderEnhanced, pro: true),
+            .toggle(icon: "arrow.up.left.and.arrow.down.right", title: String(localized: "Full Screen"),
+                    subtitle: String(localized: "Stretch the picture, sacrificing the 4:3 aspect"),
+                    binding: $stretchFill, pro: true),
+            .toggle(icon: "wand.and.stars", title: String(localized: "Picture Smoothing"),
+                    subtitle: String(localized: "Soft filtering instead of raw pixels"),
+                    binding: $videoSmoothing, pro: true),
+            .toggle(icon: "iphone.radiowaves.left.and.right", title: String(localized: "Haptic Feedback"),
+                    subtitle: String(localized: "Vibration for controls, menus and buttons"),
+                    binding: $touchHaptics, pro: false),
+            .iconSelector(icon: "app.dashed", title: String(localized: "App Icon"),
+                          subtitle: String(localized: "Choose the icon shown on your Home Screen")),
         ]
+    }
+
+    /// Перелистнуть иконку приложения на `delta` пунктов (по кругу) и применить
+    private func cycleIcon(by delta: Int) {
+        let all = AppIcon.allCases
+        guard let i = all.firstIndex(of: appIcon) else { return }
+        let next = all[(i + delta + all.count) % all.count]
+        guard next != appIcon else { return }
+        appIcon = next
+        IconManager.set(next)
+        UISound.play(.click)
+        UIHaptics.move()
     }
 
     /// Заперта ли Pro-строка: подписки нет и пробные 10 часов сожжены
     private func isRowLocked(_ pro: Bool) -> Bool {
         pro && !subscriptionManager.isSubscribed && FeatureGate.trialRemaining <= 0
+    }
+
+    /// В фокусе селектор — подсказка и × работают как «листать», а не «переключить»
+    private var focusedItemIsSelector: Bool {
+        settingsItems.indices.contains(settingsIndex) && settingsItems[settingsIndex].isSelector
+    }
+
+    @ViewBuilder
+    private func settingRow(for item: SettingItem, index: Int) -> some View {
+        let focusDistance = abs(index - settingsIndex)
+        switch item {
+        case let .toggle(icon, title, subtitle, binding, pro):
+            let locked = isRowLocked(pro)
+            SettingRow(icon: icon, title: title, subtitle: subtitle, isOn: binding,
+                       focusDistance: focusDistance, isLocked: locked)
+                .onTapGesture {
+                    settingsIndex = index
+                    if locked {
+                        showPaywall = true
+                    } else {
+                        binding.wrappedValue.toggle()
+                        UIHaptics.action()
+                    }
+                }
+        case let .iconSelector(icon, title, subtitle):
+            SettingSelectorRow(
+                icon: icon, title: title, subtitle: subtitle,
+                valueTitle: appIcon.title,
+                valuePreviewAsset: appIcon.previewAsset,
+                focusDistance: focusDistance,
+                onPrev: { settingsIndex = index; cycleIcon(by: -1) },
+                onNext: { settingsIndex = index; cycleIcon(by: 1) })
+        }
     }
 
     private func settingsPage(anchorX: CGFloat) -> some View {
@@ -343,7 +406,11 @@ struct GameLibraryView: View {
                     .foregroundStyle(.white.opacity(0.9))
                 Spacer()
                 if gamepadManager.isControllerConnected {
-                    hint(symbol: "xmark", circleColor: .blue, text: "Toggle")
+                    if focusedItemIsSelector {
+                        hint(symbol: "arrow.left.arrow.right", circleColor: .blue, text: "Change")
+                    } else {
+                        hint(symbol: "xmark", circleColor: .blue, text: "Toggle")
+                    }
                     hint(symbol: "chevron.up", circleColor: .gray, text: "Back")
                 }
                 Button {
@@ -362,25 +429,9 @@ struct GameLibraryView: View {
             ScrollViewReader { proxy in
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 10) {
-                        ForEach(Array(settingsToggles.enumerated()), id: \.offset) { index, row in
-                            SettingRow(
-                                icon: row.icon,
-                                title: row.title,
-                                subtitle: row.subtitle,
-                                isOn: row.binding,
-                                focusDistance: abs(index - settingsIndex),
-                                isLocked: isRowLocked(row.pro)
-                            )
-                            .id(index)
-                            .onTapGesture {
-                                settingsIndex = index
-                                if isRowLocked(row.pro) {
-                                    showPaywall = true
-                                } else {
-                                    row.binding.wrappedValue.toggle()
-                                    UIHaptics.action()
-                                }
-                            }
+                        ForEach(Array(settingsItems.enumerated()), id: \.offset) { index, item in
+                            settingRow(for: item, index: index)
+                                .id(index)
                         }
                     }
                     .padding(.horizontal, 8)
@@ -510,7 +561,7 @@ struct GameLibraryView: View {
         )
     }
 
-    private func hint(symbol: String, circleColor: Color, text: String) -> some View {
+    private func hint(symbol: String, circleColor: Color, text: LocalizedStringKey) -> some View {
         HStack(spacing: 7) {
             ZStack {
                 Circle()
@@ -579,23 +630,32 @@ struct GameLibraryView: View {
             UISound.play(.click)
             UIHaptics.move()
         case (.settings, .down):
-            guard settingsIndex < settingsToggles.count - 1 else { break }
+            guard settingsIndex < settingsItems.count - 1 else { break }
             settingsIndex += 1
             UISound.play(.click)
             UIHaptics.move()
         case (.settings, .primary):
-            if isRowLocked(settingsToggles[settingsIndex].pro) {
-                showPaywall = true
-            } else {
-                settingsToggles[settingsIndex].binding.wrappedValue.toggle()
-                UIHaptics.action()
+            let item = settingsItems[settingsIndex]
+            switch item {
+            case let .toggle(_, _, _, binding, pro):
+                if isRowLocked(pro) {
+                    showPaywall = true
+                } else {
+                    binding.wrappedValue.toggle()
+                    UIHaptics.action()
+                }
+            case .iconSelector:
+                cycleIcon(by: 1) // × листает селектор вперёд
             }
+        case (.settings, .left):
+            if focusedItemIsSelector { cycleIcon(by: -1) }
+        case (.settings, .right):
+            if focusedItemIsSelector { cycleIcon(by: 1) }
         case (.settings, .cancel):
             page = .library
             UISound.play(.click)
             UIHaptics.move()
-        case (.settings, .left), (.settings, .right), (.settings, .secondary),
-             (.library, .cancel):
+        case (.settings, .secondary), (.library, .cancel):
             break
         }
     }
@@ -648,21 +708,21 @@ struct GameLibraryView: View {
 
         return [
             ConsoleMenuEntry(
-                icon: "play.fill", title: "Play",
-                subtitle: "Fresh start", enabled: true, image: artImage
+                icon: "play.fill", title: String(localized: "Play"),
+                subtitle: String(localized: "Fresh start"), enabled: true, image: artImage
             ) {
                 launch(game, state: nil)
             },
             ConsoleMenuEntry(
-                icon: "memories", title: "Continue",
-                subtitle: autoDate.map { "Where you left off · \($0)" } ?? "No autosave yet",
+                icon: "memories", title: String(localized: "Continue"),
+                subtitle: autoDate.map { String(localized: "Where you left off · \($0)") } ?? String(localized: "No autosave yet"),
                 enabled: autoDate != nil, image: autoImage
             ) {
                 launch(game, state: game.autoStateURL)
             },
             ConsoleMenuEntry(
-                icon: "square.and.arrow.up", title: "Load",
-                subtitle: manualDate ?? "No manual save yet",
+                icon: "square.and.arrow.up", title: String(localized: "Load"),
+                subtitle: manualDate ?? String(localized: "No manual save yet"),
                 enabled: manualDate != nil, image: manualImage
             ) {
                 launch(game, state: game.saveStateURL)
@@ -948,8 +1008,29 @@ struct GameLibraryView: View {
         try? FileManager.default.removeItem(at: game.saveStateURL)
         try? FileManager.default.removeItem(at: game.autoStateURL)
         try? FileManager.default.removeItem(at: game.saveImageURL)
+        try? FileManager.default.removeItem(at: game.cheatsURL)
         BoxartFetcher.forgetAttempts([game.id])
         reloadGames()
+    }
+}
+
+// MARK: - Модель строк настроек
+
+/// Разнородный список настроек: тумблеры и селекторы живут в одной колонке
+private enum SettingItem: Identifiable {
+    case toggle(icon: String, title: String, subtitle: String, binding: Binding<Bool>, pro: Bool)
+    case iconSelector(icon: String, title: String, subtitle: String)
+
+    var id: String {
+        switch self {
+        case let .toggle(_, title, _, _, _): title
+        case let .iconSelector(_, title, _): title
+        }
+    }
+
+    var isSelector: Bool {
+        if case .iconSelector = self { return true }
+        return false
     }
 }
 
@@ -1029,6 +1110,110 @@ private struct SettingRow: View {
                     .frame(width: 20, height: 20)
                     .padding(3)
             }
+    }
+}
+
+// MARK: - Строка-селектор
+
+/// Строка настройки, значение которой листается влево/вправо (крестовиной
+/// или тапом по стрелкам) — в отличие от тумблера. Переиспользуемая: значение
+/// и превью приходят снаружи, поведение — через onPrev/onNext.
+private struct SettingSelectorRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let valueTitle: String
+    /// Имя imageset для миниатюры значения; nil — только текст
+    let valuePreviewAsset: String?
+    let focusDistance: Int
+    let onPrev: () -> Void
+    let onNext: () -> Void
+
+    private var isFocused: Bool { focusDistance == 0 }
+
+    private var distanceOpacity: Double {
+        switch focusDistance {
+        case 0: 1.0
+        case 1: 0.6
+        case 2: 0.42
+        default: 0.3
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.55))
+                .frame(width: 30)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
+                Text(subtitle)
+                    .font(.system(size: 12, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.4))
+            }
+
+            Spacer(minLength: 16)
+
+            picker
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 14).fill(.white.opacity(isFocused ? 0.1 : 0.04)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(
+                    isFocused ? .white.opacity(0.9) : .white.opacity(0.08),
+                    lineWidth: isFocused ? 2 : 1)
+        )
+        .scaleEffect(isFocused ? 1.02 : 1)
+        .opacity(distanceOpacity)
+        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: focusDistance)
+    }
+
+    private var picker: some View {
+        HStack(spacing: 8) {
+            chevron("chevron.left", action: onPrev)
+
+            HStack(spacing: 8) {
+                if let valuePreviewAsset {
+                    Image(valuePreviewAsset)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 30, height: 30)
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 7)
+                                .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+                        )
+                }
+                Text(valueTitle)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .lineLimit(1)
+                    .contentTransition(.opacity)
+            }
+            // Стабильная ширина: стрелки не «дышат» при смене названия/превью
+            .frame(width: 118, alignment: .leading)
+            .animation(.spring(response: 0.25, dampingFraction: 0.85), value: valueTitle)
+
+            chevron("chevron.right", action: onNext)
+        }
+    }
+
+    private func chevron(_ symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.white.opacity(isFocused ? 0.9 : 0.45))
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(.white.opacity(0.08)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

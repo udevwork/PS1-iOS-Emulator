@@ -18,7 +18,19 @@ final class GamepadManager {
         case cancel    // ○ — назад/закрыть меню
     }
 
+    /// Разовое событие «геймпад подключился/отключился» — для всплывашки.
+    /// id делает каждое событие уникальным, чтобы UI показал даже повтор.
+    struct ControllerEvent: Equatable, Identifiable {
+        let id = UUID()
+        let name: String
+        let connected: Bool
+        let batteryLevel: Float? // 0…1, nil если неизвестно
+        let charging: Bool
+    }
+
     private(set) var isControllerConnected = false
+    /// Последнее событие подключения/отключения — UI показывает тост
+    private(set) var controllerEvent: ControllerEvent?
     /// Курок ×2 зажат — для индикатора на игровом экране
     private(set) var isFastForwarding = false
 
@@ -52,20 +64,46 @@ final class GamepadManager {
             MainActor.assumeIsolated {
                 guard let controller = note.object as? GCController else { return }
                 self?.configure(controller)
+                self?.emitEvent(for: controller, connected: true)
             }
         }
         NotificationCenter.default.addObserver(
             forName: .GCControllerDidDisconnect, object: nil, queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] note in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.isControllerConnected = !GCController.controllers().isEmpty
                 EmulatorCore.shared.input.releaseAll()
                 self.cancelAllRepeats()
                 self.menuHeld.removeAll()
+                self.l3Held = false
+                if let controller = note.object as? GCController {
+                    self.emitEvent(for: controller, connected: false)
+                }
+                // Отключился в игре и других контроллеров нет — открываем меню
+                // (оно ставит на паузу): отошедший провод не стоит прогресса
+                if self.mode == .game && !self.isControllerConnected {
+                    self.pauseHandler?()
+                }
             }
         }
+        // Уже подключённые на старте настраиваем без тоста
         GCController.controllers().forEach(configure)
+    }
+
+    /// Собирает событие с именем и зарядом контроллера для всплывашки.
+    private func emitEvent(for controller: GCController, connected: Bool) {
+        var level: Float?
+        var charging = false
+        if let battery = controller.battery, battery.batteryState != .unknown {
+            level = battery.batteryLevel
+            charging = battery.batteryState == .charging
+        }
+        controllerEvent = ControllerEvent(
+            name: controller.vendorName ?? "Controller",
+            connected: connected,
+            batteryLevel: level,
+            charging: charging)
     }
 
     private func configure(_ controller: GCController) {

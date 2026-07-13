@@ -23,6 +23,8 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
     private var fps: Double = 60.0
     /// Стейт, который грузим сразу после старта (выбран в меню запуска)
     private var initialStateURL: URL?
+    /// Читы, применяемые сразу после загрузки игры
+    private var pendingCheats: [Cheat] = []
     private var _fastForward = false
 
     /// Ускорение ×2 (курок на геймпаде). Читается тактовщиком каждый кадр.
@@ -78,11 +80,12 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
 
     // MARK: - Управление
 
-    func start(gamePath: String, initialState: URL? = nil) {
+    func start(gamePath: String, initialState: URL? = nil, cheats: [Cheat] = []) {
         stateLock.lock(); defer { stateLock.unlock() }
         guard state == .stopped else { return }
         self.gamePath = gamePath
         self.initialStateURL = initialState
+        self.pendingCheats = cheats
         // Pro-статус фиксируется на всю сессию: истёкший посреди игры триал
         // не должен переключать качество на лету
         FeatureGate.beginSession()
@@ -159,6 +162,8 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
            FileManager.default.fileExists(atPath: initialStateURL.path) {
             _ = unserialize(from: initialStateURL)
         }
+
+        applyCheats(pendingCheats)
 
         audio.start(sampleRate: avInfo.timing.sample_rate)
 
@@ -271,6 +276,26 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
 
     func loadState(from url: URL) -> Bool {
         performSync { Self.shared.unserialize(from: url) } ?? false
+    }
+
+    // MARK: - Читы (GameShark)
+
+    /// Заменить активный набор читов (из меню читов во время игры).
+    func setCheats(_ cheats: [Cheat]) {
+        _ = performSync { Self.shared.applyCheats(cheats); return true }
+    }
+
+    /// Только с эмуляционного потока: сбрасываем и заново добавляем включённые.
+    /// Ядро само применяет их к памяти каждый кадр в retro_run.
+    private func applyCheats(_ cheats: [Cheat]) {
+        retro_cheat_reset()
+        var index: UInt32 = 0
+        for cheat in cheats where cheat.enabled {
+            let code = cheat.code.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !code.isEmpty else { continue }
+            code.withCString { retro_cheat_set(index, true, $0) }
+            index += 1
+        }
     }
 
     /// Сброс консоли (начать игру заново); авто-сейв затирается.
