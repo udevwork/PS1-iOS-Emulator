@@ -139,6 +139,7 @@ struct GameLibraryView: View {
             Text(importError ?? "")
         }
         .onAppear {
+            installBundledGameIfNeeded()
             reloadGames()
             fetchBoxarts()
             GamepadManager.shared.mode = .menu
@@ -634,6 +635,31 @@ struct GameLibraryView: View {
             fetchBoxarts()
         case .failure(let error):
             importError = error.localizedDescription
+        }
+    }
+
+    /// Предустановленная хоумбрю-игра (Loonies 8192, thp.io) — библиотека
+    /// не пустая с первого запуска, и ревьюеру Apple есть что запустить.
+    /// Ставится один раз: если пользователь удалил — не воскресает.
+    private func installBundledGameIfNeeded() {
+        let installedFlag = "bundledLooniesInstalled"
+        guard !UserDefaults.standard.bool(forKey: installedFlag) else { return }
+        UserDefaults.standard.set(true, forKey: installedFlag)
+
+        guard let cue = Bundle.main.url(forResource: "Loonies 8192", withExtension: "cue"),
+              let bin = Bundle.main.url(forResource: "Loonies 8192", withExtension: "bin") else { return }
+        try? FileManager.default.copyItem(
+            at: cue, to: Self.gamesDirectory.appendingPathComponent("Loonies 8192.cue"))
+        try? FileManager.default.copyItem(
+            at: bin, to: Self.gamesDirectory.appendingPathComponent("Loonies 8192.bin"))
+
+        // Обложка от автора — предзасеваем как бокс-арт, чтобы карточка
+        // была красивой сразу, без похода в TheGamesDB
+        if let art = Bundle.main.url(forResource: "Loonies 8192 Cover", withExtension: "png") {
+            let boxart = EmulatorCore.saveDirectory
+                .appendingPathComponent("Loonies 8192.cue")
+                .appendingPathExtension("boxart.jpg")
+            try? FileManager.default.copyItem(at: art, to: boxart)
         }
     }
 

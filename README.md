@@ -41,6 +41,13 @@ your own dump (e.g. `scph1001.bin`) into the app's `Documents/System` folder via
 
 No games are included. Import disc images of games you own.
 
+## Bundled game
+
+The app ships with [Loonies 8192](https://thp.io/2018/loonies8192/) by Thomas Perl (thp) —
+a homebrew PSX puzzle game — so the library isn't empty on first launch. It is
+distributed free of charge by its author; all rights remain with him. If you are
+the author and want it removed, contact us and it will be gone in the next release.
+
 ## Emulation core
 
 The emulator core is [PCSX-ReARMed](https://github.com/libretro/pcsx_rearmed)
