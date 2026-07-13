@@ -74,20 +74,20 @@ struct GameScreenView: View {
             Button {
                 _ = EmulatorCore.shared.saveState(to: game.saveStateURL)
             } label: {
-                Label("Сохранить", systemImage: "square.and.arrow.down")
+                Label("Save State", systemImage: "square.and.arrow.down")
             }
 
             Button {
                 _ = EmulatorCore.shared.loadState(from: game.saveStateURL)
             } label: {
-                Label("Загрузить", systemImage: "square.and.arrow.up")
+                Label("Load State", systemImage: "square.and.arrow.up")
             }
             .disabled(!FileManager.default.fileExists(atPath: game.saveStateURL.path))
 
             Button {
                 EmulatorCore.shared.reset()
             } label: {
-                Label("Начать заново", systemImage: "arrow.counterclockwise")
+                Label("Start Over", systemImage: "arrow.counterclockwise")
             }
 
             let disks = EmulatorCore.shared.diskInfo()
@@ -98,15 +98,15 @@ struct GameScreenView: View {
                             EmulatorCore.shared.switchDisk(to: index)
                         } label: {
                             if index == disks.current {
-                                Label("Диск \(index + 1)", systemImage: "checkmark")
+                                Label("Disc \(index + 1)", systemImage: "checkmark")
                             } else {
-                                Text("Диск \(index + 1)")
+                                Text("Disc \(index + 1)")
                             }
                         }
                         .disabled(index == disks.current)
                     }
                 } label: {
-                    Label("Сменить диск", systemImage: "opticaldisc")
+                    Label("Change Disc", systemImage: "opticaldisc")
                 }
             }
 
@@ -115,7 +115,7 @@ struct GameScreenView: View {
             Button(role: .destructive) {
                 dismiss()
             } label: {
-                Label("Выйти из игры", systemImage: "xmark.circle")
+                Label("Quit Game", systemImage: "xmark.circle")
             }
         } label: {
             Image(systemName: "ellipsis.circle.fill")

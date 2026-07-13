@@ -35,11 +35,11 @@ struct PaywallView: View {
         }
         .preferredColorScheme(.dark)
         .statusBarHidden()
-        .alert("Не получилось", isPresented: .init(
+        .alert("Something went wrong", isPresented: .init(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )) {
-            Button("Ок", role: .cancel) {}
+            Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
         }
@@ -62,27 +62,27 @@ struct PaywallView: View {
             Text("PRO")
                 .font(.system(size: 34, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
-            Text("Всё лучшее — без ограничений")
+            Text("The full experience, no limits")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundStyle(.white.opacity(0.5))
                 .padding(.top, 2)
 
             VStack(alignment: .leading, spacing: 14) {
                 benefit(icon: "sparkles.tv",
-                        title: "Повышенное разрешение",
-                        subtitle: "3D в удвоенном качестве (×2)")
+                        title: "Enhanced Resolution",
+                        subtitle: "3D rendered at double quality (×2)")
                 benefit(icon: "arrow.up.left.and.arrow.down.right",
-                        title: "Экран без рамок",
-                        subtitle: "Картинка на всю ширину дисплея")
+                        title: "Full-Screen Picture",
+                        subtitle: "Image stretched edge to edge")
                 benefit(icon: "wand.and.stars",
-                        title: "Сглаживание картинки",
-                        subtitle: "Мягкий фильтр вместо пикселей")
+                        title: "Picture Smoothing",
+                        subtitle: "Soft filtering instead of raw pixels")
                 benefit(icon: "forward.fill",
-                        title: "Перемотка ×2",
-                        subtitle: "Курок — и диалоги пролетают")
+                        title: "Fast-Forward ×2",
+                        subtitle: "Hold the trigger, skip the dialogues")
                 benefit(icon: "photo.on.rectangle.angled",
-                        title: "Обложки игр",
-                        subtitle: "Настоящие бокс-арты в библиотеке")
+                        title: "Game Covers",
+                        subtitle: "Real box art in your library")
             }
             .padding(.top, 24)
 
@@ -99,11 +99,12 @@ struct PaywallView: View {
     private var trialStatus: String {
         let remaining = FeatureGate.trialRemaining
         guard remaining > 0 else {
-            return "Пробный период завершён — 10 бесплатных часов сыграны"
+            let totalHours = Int(FeatureGate.trialSeconds) / 3600
+            return "Free trial ended — \(totalHours) free hours played"
         }
         let hours = Int(remaining) / 3600
         let minutes = (Int(remaining) % 3600) / 60
-        return "Пробный период: осталось \(hours) ч \(minutes) мин игры"
+        return "Free trial: \(hours)h \(minutes)m of playtime left"
     }
 
     private func benefit(icon: String, title: String, subtitle: String) -> some View {
@@ -133,7 +134,7 @@ struct PaywallView: View {
                 Text(package.storeProduct.localizedPriceString)
                     .font(.system(size: 40, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
-                Text("в неделю")
+                Text("per week")
                     .font(.system(size: 14, design: .rounded))
                     .foregroundStyle(.white.opacity(0.5))
                     .padding(.top, 2)
@@ -141,7 +142,7 @@ struct PaywallView: View {
                 ProgressView()
                     .tint(.white)
                     .padding(.bottom, 8)
-                Text("Загружаю цену…")
+                Text("Loading price…")
                     .font(.system(size: 14, design: .rounded))
                     .foregroundStyle(.white.opacity(0.5))
             }
@@ -151,7 +152,7 @@ struct PaywallView: View {
                     if isPurchasing {
                         ProgressView().tint(.black)
                     } else {
-                        Text("Подписаться")
+                        Text("Subscribe")
                             .font(.system(size: 17, weight: .bold, design: .rounded))
                     }
                 }
@@ -167,7 +168,7 @@ struct PaywallView: View {
                 if isRestoring {
                     ProgressView().tint(.white.opacity(0.6))
                 } else {
-                    Text("Восстановить покупки")
+                    Text("Restore Purchases")
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.6))
                 }
@@ -175,15 +176,15 @@ struct PaywallView: View {
             .disabled(isRestoring)
             .padding(.top, 14)
 
-            Text("Подписка продлевается автоматически. Отменить можно в любой момент в настройках App Store.")
+            Text("Subscription renews automatically. Cancel anytime in your App Store settings.")
                 .font(.system(size: 10, design: .rounded))
                 .foregroundStyle(.white.opacity(0.3))
                 .multilineTextAlignment(.center)
                 .padding(.top, 18)
 
             HStack(spacing: 16) {
-                legalLink("Условия", .terms)
-                legalLink("Конфиденциальность", .privacy)
+                legalLink("Terms", .terms)
+                legalLink("Privacy", .privacy)
             }
             .padding(.top, 10)
 
@@ -249,7 +250,7 @@ struct PaywallView: View {
                 if try await manager.restore() {
                     dismiss()
                 } else {
-                    errorMessage = "Активная подписка не найдена."
+                    errorMessage = "No active subscription found."
                 }
             } catch {
                 errorMessage = error.localizedDescription
@@ -268,8 +269,8 @@ enum LegalDocument: String, Identifiable {
 
     var title: String {
         switch self {
-        case .terms: "Условия использования"
-        case .privacy: "Конфиденциальность"
+        case .terms: "Terms of Use"
+        case .privacy: "Privacy Policy"
         }
     }
 
@@ -277,7 +278,7 @@ enum LegalDocument: String, Identifiable {
         switch self {
         // Стандартный Apple EULA — для подписок этого достаточно
         case .terms: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
-        case .privacy: URL(string: "https://github.com/udevwork/PS1-iOS-Emulator/blob/main/PRIVACY.md")!
+        case .privacy: URL(string: "https://raw.githubusercontent.com/udevwork/PS1-iOS-Emulator/refs/heads/main/PRIVACY.md")!
         }
     }
 }
@@ -295,7 +296,7 @@ struct LegalSheet: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Закрыть") { dismiss() }
+                        Button("Close") { dismiss() }
                     }
                 }
         }

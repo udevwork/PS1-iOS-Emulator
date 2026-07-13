@@ -58,7 +58,7 @@ final class SubscriptionManager {
     func purchase() async throws -> PurchaseOutcome {
         guard let package else {
             throw NSError(domain: "SubscriptionManager", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Подписка недоступна. Проверь соединение и попробуй ещё раз."
+                NSLocalizedDescriptionKey: "Subscription is unavailable. Check your connection and try again."
             ])
         }
         let result = try await Purchases.shared.purchase(package: package)

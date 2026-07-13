@@ -130,11 +130,11 @@ struct GameLibraryView: View {
         .fullScreenCover(isPresented: $showPaywall) {
             PaywallView()
         }
-        .alert("Не удалось импортировать", isPresented: .init(
+        .alert("Import Failed", isPresented: .init(
             get: { importError != nil },
             set: { if !$0 { importError = nil } }
         )) {
-            Button("Ок", role: .cancel) {}
+            Button("OK", role: .cancel) {}
         } message: {
             Text(importError ?? "")
         }
@@ -234,16 +234,16 @@ struct GameLibraryView: View {
 
     private var settingsToggles: [(icon: String, title: String, subtitle: String, binding: Binding<Bool>, pro: Bool)] {
         [
-            ("sparkles.tv", "Повышенное разрешение",
-             "3D-игры рендерятся в удвоенном разрешении (×2)", $renderEnhanced, true),
-            ("arrow.up.left.and.arrow.down.right", "На весь экран",
-             "Растянуть картинку, пожертвовав пропорциями 4:3", $stretchFill, true),
-            ("wand.and.stars", "Сглаживание картинки",
-             "Мягкая фильтрация вместо честных пикселей", $videoSmoothing, true),
-            ("iphone.radiowaves.left.and.right", "Вибрация тач-кнопок",
-             "Отклик при нажатии экранных кнопок", $touchHaptics, false),
-            ("memories", "Продолжать с места выхода",
-             "Возвращаться в игру там же, где закончил", $autoResume, false),
+            ("sparkles.tv", "Enhanced Resolution",
+             "3D games render at double internal resolution (×2)", $renderEnhanced, true),
+            ("arrow.up.left.and.arrow.down.right", "Full Screen",
+             "Stretch the picture, sacrificing the 4:3 aspect", $stretchFill, true),
+            ("wand.and.stars", "Picture Smoothing",
+             "Soft filtering instead of raw pixels", $videoSmoothing, true),
+            ("iphone.radiowaves.left.and.right", "Touch Button Haptics",
+             "Vibration feedback for on-screen controls", $touchHaptics, false),
+            ("memories", "Resume Where You Left Off",
+             "Jump back in at the exact same spot", $autoResume, false),
         ]
     }
 
@@ -255,13 +255,13 @@ struct GameLibraryView: View {
     private func settingsPage(anchorX: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 24) {
-                Text("Настройки")
+                Text("Settings")
                     .font(.system(size: 22, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white.opacity(0.9))
                 Spacer()
                 if gamepadManager.isControllerConnected {
-                    hint(symbol: "xmark", circleColor: .blue, text: "Переключить")
-                    hint(symbol: "chevron.up", circleColor: .gray, text: "Назад")
+                    hint(symbol: "xmark", circleColor: .blue, text: "Toggle")
+                    hint(symbol: "chevron.up", circleColor: .gray, text: "Back")
                 }
                 Button {
                     page = .library
@@ -340,8 +340,8 @@ struct GameLibraryView: View {
             Spacer()
 
             if gamepadManager.isControllerConnected {
-                hint(symbol: "xmark", circleColor: .blue, text: "Играть")
-                hint(symbol: "triangle", circleColor: .green, text: "Добавить")
+                hint(symbol: "xmark", circleColor: .blue, text: "Play")
+                hint(symbol: "triangle", circleColor: .green, text: "Add")
             }
 
             if !subscriptionManager.isSubscribed {
@@ -388,7 +388,7 @@ struct GameLibraryView: View {
                                 Button(role: .destructive) {
                                     deleteGame(game)
                                 } label: {
-                                    Label("Удалить", systemImage: "trash")
+                                    Label("Delete", systemImage: "trash")
                                 }
                             }
                     }
@@ -436,7 +436,7 @@ struct GameLibraryView: View {
                             .padding(.vertical, 3)
                             .background(Capsule().fill(.white.opacity(0.1)))
                         if game.hasResumePoint {
-                            Text("Продолжить")
+                            Text("Continue")
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.white.opacity(0.45))
                         }
@@ -468,16 +468,16 @@ struct GameLibraryView: View {
             Image(systemName: "opticaldisc")
                 .font(.system(size: 56))
                 .foregroundStyle(.white.opacity(0.25))
-            Text("Нет игр")
+            Text("No Games")
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.9))
-            Text("Добавь образ диска — .chd, .cue + .bin или .pbp")
+            Text("Add a disc image — .chd, .cue + .bin, or .pbp")
                 .font(.system(size: 15, design: .rounded))
                 .foregroundStyle(.white.opacity(0.45))
             Button {
                 showImporter = true
             } label: {
-                Text("Добавить игру")
+                Text("Add Game")
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
