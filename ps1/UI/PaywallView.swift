@@ -273,12 +273,11 @@ enum LegalDocument: String, Identifiable {
         }
     }
 
-    // TODO: подставить реальные URL, когда будут готовы.
-    // Для termsов подойдёт и стандартный Apple EULA.
     var url: URL {
         switch self {
+        // Стандартный Apple EULA — для подписок этого достаточно
         case .terms: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
-        case .privacy: URL(string: "https://example.com/privacy")!
+        case .privacy: URL(string: "https://github.com/udevwork/PS1-iOS-Emulator/blob/main/PRIVACY.md")!
         }
     }
 }
