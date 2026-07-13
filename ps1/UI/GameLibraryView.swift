@@ -57,6 +57,8 @@ struct GameLibraryView: View {
     @State private var showImporter = false
     @State private var importError: String?
     @State private var gamepadManager = GamepadManager.shared
+    @State private var subscriptionManager = SubscriptionManager.shared
+    @State private var showPaywall = false
 
     // Вертикальная «карусель» страниц: библиотека — верхний элемент, настройки — под ней
     private enum Page { case library, settings }
@@ -121,6 +123,9 @@ struct GameLibraryView: View {
             reloadGames()
         }) { game in
             GameScreenView(game: game)
+        }
+        .fullScreenCover(isPresented: $showPaywall) {
+            PaywallView()
         }
         .alert("Не удалось импортировать", isPresented: .init(
             get: { importError != nil },
@@ -326,6 +331,18 @@ struct GameLibraryView: View {
                 hint(symbol: "triangle", circleColor: .green, text: "Добавить")
             }
 
+            if !subscriptionManager.isSubscribed {
+                Button {
+                    showPaywall = true
+                } label: {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.yellow.opacity(0.85))
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(.white.opacity(0.08)))
+                }
+            }
+
             Button {
                 showImporter = true
             } label: {
@@ -461,6 +478,8 @@ struct GameLibraryView: View {
     // MARK: - Действия
 
     private func handleMenuEvent(_ event: GamepadManager.MenuEvent) {
+        // Пока пейвол открыт, геймпад не должен листать библиотеку под ним
+        guard !showPaywall else { return }
         switch (page, event) {
         case (.library, .left): select(selectedIndex - 1)
         case (.library, .right): select(selectedIndex + 1)

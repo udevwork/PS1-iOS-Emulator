@@ -12,6 +12,8 @@ struct ps1App: App {
     init() {
         // Инициализируем слежение за геймпадами с запуска приложения
         _ = GamepadManager.shared
+        // RevenueCat: состояние подписки актуально с первого экрана
+        SubscriptionManager.configure()
     }
 
     var body: some Scene {
