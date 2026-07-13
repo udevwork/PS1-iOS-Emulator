@@ -27,9 +27,12 @@ struct Game: Identifiable, Hashable {
             .appendingPathExtension("boxart.jpg")
     }
 
-    /// Что показывать на карточке: бокс-арт, иначе скриншот из сейва
+    /// Что показывать на карточке: бокс-арт (Pro), иначе скриншот из сейва
     var displayCoverPath: String {
-        FileManager.default.fileExists(atPath: boxartURL.path) ? boxartURL.path : coverURL.path
+        if FeatureGate.isPro && FileManager.default.fileExists(atPath: boxartURL.path) {
+            return boxartURL.path
+        }
+        return coverURL.path
     }
 
     /// Есть точка продолжения — на карточке показываем «Продолжить»
@@ -229,19 +232,24 @@ struct GameLibraryView: View {
 
     // MARK: - Страница «Настройки»
 
-    private var settingsToggles: [(icon: String, title: String, subtitle: String, binding: Binding<Bool>)] {
+    private var settingsToggles: [(icon: String, title: String, subtitle: String, binding: Binding<Bool>, pro: Bool)] {
         [
             ("sparkles.tv", "Повышенное разрешение",
-             "3D-игры рендерятся в удвоенном разрешении (×2)", $renderEnhanced),
+             "3D-игры рендерятся в удвоенном разрешении (×2)", $renderEnhanced, true),
             ("arrow.up.left.and.arrow.down.right", "На весь экран",
-             "Растянуть картинку, пожертвовав пропорциями 4:3", $stretchFill),
+             "Растянуть картинку, пожертвовав пропорциями 4:3", $stretchFill, true),
             ("wand.and.stars", "Сглаживание картинки",
-             "Мягкая фильтрация вместо честных пикселей", $videoSmoothing),
+             "Мягкая фильтрация вместо честных пикселей", $videoSmoothing, true),
             ("iphone.radiowaves.left.and.right", "Вибрация тач-кнопок",
-             "Отклик при нажатии экранных кнопок", $touchHaptics),
+             "Отклик при нажатии экранных кнопок", $touchHaptics, false),
             ("memories", "Продолжать с места выхода",
-             "Возвращаться в игру там же, где закончил", $autoResume),
+             "Возвращаться в игру там же, где закончил", $autoResume, false),
         ]
+    }
+
+    /// Заперта ли Pro-строка: подписки нет и пробные 10 часов сожжены
+    private func isRowLocked(_ pro: Bool) -> Bool {
+        pro && !subscriptionManager.isSubscribed && FeatureGate.trialRemaining <= 0
     }
 
     private func settingsPage(anchorX: CGFloat) -> some View {
@@ -277,13 +285,18 @@ struct GameLibraryView: View {
                                 title: row.title,
                                 subtitle: row.subtitle,
                                 isOn: row.binding,
-                                focusDistance: abs(index - settingsIndex)
+                                focusDistance: abs(index - settingsIndex),
+                                isLocked: isRowLocked(row.pro)
                             )
                             .id(index)
                             .onTapGesture {
                                 settingsIndex = index
-                                row.binding.wrappedValue.toggle()
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.7)
+                                if isRowLocked(row.pro) {
+                                    showPaywall = true
+                                } else {
+                                    row.binding.wrappedValue.toggle()
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.7)
+                                }
                             }
                         }
                     }
@@ -500,8 +513,12 @@ struct GameLibraryView: View {
             settingsIndex += 1
             UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
         case (.settings, .primary):
-            settingsToggles[settingsIndex].binding.wrappedValue.toggle()
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.7)
+            if isRowLocked(settingsToggles[settingsIndex].pro) {
+                showPaywall = true
+            } else {
+                settingsToggles[settingsIndex].binding.wrappedValue.toggle()
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.7)
+            }
         case (.settings, .left), (.settings, .right), (.settings, .secondary):
             break
         }
@@ -679,6 +696,8 @@ private struct SettingRow: View {
     @Binding var isOn: Bool
     /// 0 — строка в фокусе; чем дальше от фокуса, тем прозрачнее
     let focusDistance: Int
+    /// Pro-фича при истёкшем триале: вместо тумблера — замок, тап ведёт на пейвол
+    let isLocked: Bool
 
     private var isFocused: Bool { focusDistance == 0 }
 
@@ -709,7 +728,15 @@ private struct SettingRow: View {
 
             Spacer(minLength: 20)
 
-            toggle
+            if isLocked {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.yellow.opacity(0.8))
+                    .frame(width: 44, height: 26)
+                    .background(Capsule().fill(.white.opacity(0.08)))
+            } else {
+                toggle
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

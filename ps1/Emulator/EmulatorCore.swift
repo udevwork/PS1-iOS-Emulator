@@ -81,6 +81,9 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
         stateLock.lock(); defer { stateLock.unlock() }
         guard state == .stopped else { return }
         self.gamePath = gamePath
+        // Pro-статус фиксируется на всю сессию: истёкший посреди игры триал
+        // не должен переключать качество на лету
+        FeatureGate.beginSession()
         // Настройка «Продолжать с места выхода» может отключить автовозобновление
         let autoResumeEnabled = (UserDefaults.standard.object(forKey: "autoResume") as? Bool) ?? true
         self.resumeFromAutoState = resume && autoResumeEnabled
@@ -162,6 +165,7 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
 
         var nextFrame = CACurrentMediaTime()
         var framesSinceSave = 0
+        var playtimeMark = CACurrentMediaTime()
 
         while true {
             stateLock.lock()
@@ -177,6 +181,7 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
             if current == .paused {
                 Thread.sleep(forTimeInterval: 0.05)
                 nextFrame = CACurrentMediaTime()
+                playtimeMark = nextFrame // пауза в триал не засчитывается
                 continue
             }
 
@@ -187,6 +192,9 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
             if framesSinceSave >= Int(fps * 5) {
                 framesSinceSave = 0
                 persistSaveRAM()
+                let now = CACurrentMediaTime()
+                FeatureGate.addPlaytime(now - playtimeMark)
+                playtimeMark = now
             }
 
             nextFrame += period
@@ -210,6 +218,7 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
         }
         saveCover()
         persistSaveRAM()
+        FeatureGate.addPlaytime(CACurrentMediaTime() - playtimeMark)
         audio.stop()
         diskControl = nil
         retro_unload_game()
@@ -444,7 +453,7 @@ nonisolated final class EmulatorCore: @unchecked Sendable {
         switch key {
         case "pcsx_rearmed_neon_enhancement_enable":
             let enhanced = (UserDefaults.standard.object(forKey: "renderEnhanced") as? Bool) ?? true
-            return enhanced ? "enabled" : "disabled"
+            return (enhanced && FeatureGate.sessionIsPro) ? "enabled" : "disabled"
         default:
             return nil
         }

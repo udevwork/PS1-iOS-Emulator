@@ -86,8 +86,9 @@ struct MetalVideoView: UIViewRepresentable {
                   let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: passDescriptor) else { return }
 
             // Настройка «На весь экран»: либо честные 4:3 (PS1 выводит
-            // с неквадратными пикселями), либо натянуть на весь экран
-            let stretchFill = (UserDefaults.standard.object(forKey: "stretchFill") as? Bool) ?? false
+            // с неквадратными пикселями), либо натянуть на весь экран (Pro)
+            let stretchFill = FeatureGate.sessionIsPro
+                && (UserDefaults.standard.object(forKey: "stretchFill") as? Bool) ?? false
             var scale = SIMD2<Float>(1, 1)
             if !stretchFill {
                 let targetAspect: Float = 4.0 / 3.0
@@ -107,8 +108,9 @@ struct MetalVideoView: UIViewRepresentable {
             encoder.setRenderPipelineState(pipeline)
             encoder.setVertexBytes(&scale, length: MemoryLayout<SIMD2<Float>>.size, index: 0)
             encoder.setVertexBytes(&texScale, length: MemoryLayout<SIMD2<Float>>.size, index: 1)
-            // Настройка «Сглаживание картинки»: линейная фильтрация или честные пиксели
-            let smoothing = (UserDefaults.standard.object(forKey: "videoSmoothing") as? Bool) ?? true
+            // Настройка «Сглаживание картинки»: линейная фильтрация или честные пиксели (Pro)
+            let smoothing = FeatureGate.sessionIsPro
+                && (UserDefaults.standard.object(forKey: "videoSmoothing") as? Bool) ?? true
             encoder.setFragmentTexture(texture, index: 0)
             encoder.setFragmentSamplerState(smoothing ? linearSampler : nearestSampler, index: 0)
             encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)

@@ -68,6 +68,9 @@ struct PaywallView: View {
                 .padding(.top, 2)
 
             VStack(alignment: .leading, spacing: 14) {
+                benefit(icon: "sparkles.tv",
+                        title: "Повышенное разрешение",
+                        subtitle: "3D в удвоенном качестве (×2)")
                 benefit(icon: "arrow.up.left.and.arrow.down.right",
                         title: "Экран без рамок",
                         subtitle: "Картинка на всю ширину дисплея")
@@ -83,9 +86,24 @@ struct PaywallView: View {
             }
             .padding(.top, 24)
 
+            Text(trialStatus)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.4))
+                .padding(.top, 18)
+
             Spacer()
         }
         .padding(.trailing, 28)
+    }
+
+    private var trialStatus: String {
+        let remaining = FeatureGate.trialRemaining
+        guard remaining > 0 else {
+            return "Пробный период завершён — 10 бесплатных часов сыграны"
+        }
+        let hours = Int(remaining) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        return "Пробный период: осталось \(hours) ч \(minutes) мин игры"
     }
 
     private func benefit(icon: String, title: String, subtitle: String) -> some View {

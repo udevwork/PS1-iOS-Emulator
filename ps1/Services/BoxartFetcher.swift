@@ -11,8 +11,9 @@ enum BoxartFetcher {
     private static let ps1PlatformID = 10 // «Sony Playstation»
     private static let attemptedKey = "boxartAttemptedGames"
 
-    /// Догружает недостающие обложки. Возвращает true, если что-то скачалось.
+    /// Догружает недостающие обложки (Pro). Возвращает true, если что-то скачалось.
     static func fetchMissing(for games: [Game]) async -> Bool {
+        guard FeatureGate.isPro else { return false }
         var attempted = Set(UserDefaults.standard.stringArray(forKey: attemptedKey) ?? [])
         var downloadedAny = false
 

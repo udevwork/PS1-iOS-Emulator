@@ -109,9 +109,9 @@ final class GamepadManager {
             rightX: gamepad.rightThumbstick.xAxis.value,
             rightY: -gamepad.rightThumbstick.yAxis.value)
 
-        // Глубоко зажатый правый курок — ускорение ×2.
+        // Глубоко зажатый правый курок — ускорение ×2 (Pro).
         // R2 при этом продолжает работать в игре как обычная кнопка
-        let fastForward = gamepad.rightTrigger.value > 0.6
+        let fastForward = FeatureGate.sessionIsPro && gamepad.rightTrigger.value > 0.6
         EmulatorCore.shared.fastForward = fastForward
         if isFastForwarding != fastForward {
             isFastForwarding = fastForward

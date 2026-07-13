@@ -41,6 +41,8 @@ final class SubscriptionManager {
 
     private func apply(_ info: CustomerInfo) {
         isSubscribed = info.entitlements[Self.entitlementID]?.isActive == true
+        // Зеркало для FeatureGate: его читают эмуляционный и рендер-потоки
+        UserDefaults.standard.set(isSubscribed, forKey: FeatureGate.subscribedCacheKey)
     }
 
     func loadOffering() async {
