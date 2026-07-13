@@ -14,6 +14,8 @@ struct ps1App: App {
         _ = GamepadManager.shared
         // RevenueCat: состояние подписки актуально с первого экрана
         SubscriptionManager.configure()
+        // Консольное «включение приставки»
+        UISound.play(.startup)
     }
 
     var body: some Scene {

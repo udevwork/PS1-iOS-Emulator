@@ -5,7 +5,7 @@ import Foundation
 /// и никакой связи с @Observable-мирами.
 enum FeatureGate {
 
-    static let trialSeconds: Double = 10 * 3600
+    static let trialSeconds: Double = 5 * 3600
 
     private static let playtimeKey = "totalPlaySeconds"
     static let subscribedCacheKey = "isSubscribedCache"

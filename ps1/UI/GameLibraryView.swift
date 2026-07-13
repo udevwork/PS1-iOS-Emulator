@@ -507,10 +507,12 @@ struct GameLibraryView: View {
             } else {
                 settingsIndex -= 1
             }
+            UISound.play(.click)
             UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
         case (.settings, .down):
             guard settingsIndex < settingsToggles.count - 1 else { break }
             settingsIndex += 1
+            UISound.play(.click)
             UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
         case (.settings, .primary):
             if isRowLocked(settingsToggles[settingsIndex].pro) {
@@ -527,6 +529,7 @@ struct GameLibraryView: View {
     private func openSettings() {
         settingsIndex = 0
         page = .settings
+        UISound.play(.click)
         UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
     }
 
@@ -534,11 +537,13 @@ struct GameLibraryView: View {
         let clamped = max(0, min(games.count - 1, index))
         guard clamped != selectedIndex else { return }
         selectedIndex = clamped
+        UISound.play(.click)
         UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.5)
     }
 
     private func launchSelected() {
         guard games.indices.contains(selectedIndex) else { return }
+        UISound.play(.confirm)
         selectedGame = games[selectedIndex]
     }
 
